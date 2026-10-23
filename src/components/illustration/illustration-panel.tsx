@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ImageIcon, Loader2, Sparkles } from "lucide-react";
+import { useState } from "react";import { ImageIcon, Loader2, Sparkles, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,21 +43,52 @@ export function IllustrationPanel({
   const providerId = selectedProviderId || providers[0]?.id || "";
   const [model, setModel] = useState(chapter.image?.model ?? "");
   const [generating, setGenerating] = useState(false);
+  const [writingPrompt, setWritingPrompt] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { options, loading } = useAvailableModels();
 
-  const modelOptions = useMemo(
-    () =>
-      options
-        .filter((option) => option.providerId === providerId)
-        .map((option) => option.model),
-    [options, providerId],
-  );
+  const providerOptions = options.filter((option) => option.providerId === providerId);
+  const flaggedOptions = providerOptions.filter((option) => option.isImage);
+  const modelOptions = (
+    flaggedOptions.length ? flaggedOptions : providerOptions
+  ).map((option) => option.model);
+  const showsAllModels =
+    providerOptions.length > 0 && flaggedOptions.length === 0;
   const listId = `illustration-models-${pageNumber}`;
   const imagePath = chapter.image?.path;
   const canGenerate = Boolean(
     prompt.trim() && providerId && model.trim() && !generating,
   );
+
+  async function autoWritePrompt() {
+    setWritingPrompt(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/ai/image-prompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug,
+          kind: "chapter",
+          pageNumber,
+        }),
+      });
+      const payload = (await response.json()) as {
+        prompt?: string;
+        error?: { message?: string };
+      };
+      if (!response.ok || !payload.prompt) {
+        setError(payload.error?.message || "The image prompt could not be written.");
+        return;
+      }
+      setPrompt(payload.prompt);
+      toast.success("Image prompt written. Review it before generating.");
+    } catch {
+      setError("Could not reach the app server while writing the prompt.");
+    } finally {
+      setWritingPrompt(false);
+    }
+  }
 
   async function generate() {
     if (!canGenerate) return;
@@ -144,7 +174,20 @@ export function IllustrationPanel({
 
       <div className="space-y-3">
         <div className="space-y-1.5">
-          <Label htmlFor={`illustration-prompt-${pageNumber}`}>Prompt</Label>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Label htmlFor={`illustration-prompt-${pageNumber}`}>Prompt</Label>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => void autoWritePrompt()}
+              disabled={writingPrompt || generating}
+              title="Use the Image Prompter model and the previous chapter summary"
+            >
+              {writingPrompt ? <Loader2 className="animate-spin" /> : <Wand2 />}
+              {writingPrompt ? "Writing prompt…" : "Auto-Write Image Prompt"}
+            </Button>
+          </div>
           <Textarea
             id={`illustration-prompt-${pageNumber}`}
             value={prompt}
@@ -206,6 +249,12 @@ export function IllustrationPanel({
                 <option key={option} value={option} />
               ))}
             </datalist>
+            {showsAllModels ? (
+              <p className="text-[10px] leading-relaxed text-muted-foreground">
+                No image models flagged for this provider; showing all models. Flag them in
+                Settings → Providers → Image models.
+              </p>
+            ) : null}
           </div>
 
           <div className="space-y-1.5">

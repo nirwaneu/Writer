@@ -23,6 +23,9 @@ export async function PUT(request: Request) {
     resolveModelRoute(config, input.models.planner);
     resolveModelRoute(config, input.models.executor);
     resolveModelRoute(config, input.models.summarizer);
+    if (input.models.imagePrompter.trim()) {
+      resolveModelRoute(config, input.models.imagePrompter);
+    }
 
     const timestamp = new Date().toISOString();
     const saved = await saveConfig({

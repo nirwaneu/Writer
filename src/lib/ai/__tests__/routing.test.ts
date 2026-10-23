@@ -13,6 +13,7 @@ const providers = [
     name: "NanoGPT",
     baseUrl: "https://a.example/v1",
     apiKey: "key-a",
+    imageModels: [],
     connection: { ok: true },
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
@@ -22,6 +23,7 @@ const providers = [
     name: "OpenRouter",
     baseUrl: "https://b.example/v1",
     apiKey: "key-b",
+    imageModels: [],
     connection: { ok: true },
     createdAt: "2026-01-02T00:00:00.000Z",
     updatedAt: "2026-01-02T00:00:00.000Z",
@@ -36,6 +38,7 @@ const config: AppConfig = {
     planner: "provider-a|gemma-4",
     executor: "provider-b|claude",
     summarizer: "provider-a|gemma-4",
+    imagePrompter: "provider-a|prompt-model",
   },
   providers,
   connection: { ok: true },
@@ -83,3 +86,4 @@ describe("model routing", () => {
     );
   });
 });
+

@@ -98,16 +98,18 @@ export async function POST(request: Request) {
       let title = "Untitled Novel";
       let titleFallback = false;
       try {
+        const titleRole = draftConfig.roles.planner;
+        const titleRoute = resolveModelRoute(global, draftConfig.models.planner);
         const result = await chatCompletion({
-          baseUrl: summarizerRoute.provider.baseUrl,
-          apiKey: summarizerRoute.provider.apiKey,
-          model: summarizerRoute.model,
+          baseUrl: titleRoute.provider.baseUrl,
+          apiKey: titleRoute.provider.apiKey,
+          model: titleRoute.model,
           messages: buildTitleMessages(
             chat.messages,
             premise,
-            summarizerRole.systemPrompt,
+            titleRole.systemPrompt,
           ),
-          params: summarizerRole.params,
+          params: titleRole.params,
           maxTokens: 40,
           timeoutMs: 60_000,
           retries: 1,

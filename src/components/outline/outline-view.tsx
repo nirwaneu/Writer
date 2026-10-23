@@ -1,15 +1,22 @@
 import { cn } from "@/lib/utils";
 import { chapterDisplayNumber } from "@/lib/pages";
-import type { Outline } from "@/lib/schemas";
+import { DeletePageButton } from "@/components/workspace/delete-page-button";
+import type { Chapter, Outline } from "@/lib/schemas";
 
 export function OutlineView({
   outline,
   className,
   compact = false,
+  characterActions,
+  onDeletePage,
+  deletingPageNumber,
 }: {
   outline: Outline;
   className?: string;
   compact?: boolean;
+  characterActions?: React.ReactNode;
+  onDeletePage?: (page: Chapter) => void;
+  deletingPageNumber?: number | null;
 }) {
   return (
     <div className={cn("space-y-6", className)}>
@@ -36,6 +43,7 @@ export function OutlineView({
             {outline.characters.length}
           </span>
         </div>
+        {characterActions ? <div className="mt-2 flex flex-wrap gap-1.5">{characterActions}</div> : null}
         {outline.characters.length ? (
           <ul className="mt-2 divide-y divide-border border-y border-border">
             {outline.characters.map((character) => (
@@ -88,6 +96,16 @@ export function OutlineView({
                   {chapter.summaryStale ? (
                     <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#f2937f]">
                       stale
+                    </span>
+                  ) : null}
+                  {onDeletePage ? (
+                    <span className="ml-auto">
+                      <DeletePageButton
+                        page={chapter}
+                        compact
+                        deleting={deletingPageNumber === chapter.number}
+                        onDelete={onDeletePage}
+                      />
                     </span>
                   ) : null}
                 </div>

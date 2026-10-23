@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { BookCover } from "@/components/library/book-cover";
 import { RelativeTime } from "@/components/relative-time";
 import { NewBookDialog } from "@/components/books/new-book-dialog";
+import { illustrationUrl } from "@/lib/pages";
 import type { ModelRoles, NovelListItem, Preset, Provider } from "@/lib/schemas";
 
 type Filter = "all" | "drafting" | "complete";
@@ -209,7 +210,16 @@ function FeaturedBook({ novel }: { novel: NovelListItem }) {
       />
       <div className="relative grid md:grid-cols-[250px_1fr]">
         <div className="flex items-center justify-center border-b border-border px-8 py-8 md:border-b-0 md:border-r">
-          <BookCover title={novel.title} slug={novel.slug} size="lg" />
+          <BookCover
+            title={novel.title}
+            slug={novel.slug}
+            imageSrc={
+              novel.coverImagePath
+                ? illustrationUrl(novel.slug, novel.coverImagePath)
+                : undefined
+            }
+            size="lg"
+          />
         </div>
         <div className="flex min-w-0 flex-col justify-center p-6 md:p-8">
           <div className="flex flex-wrap items-center gap-2.5">
@@ -275,7 +285,15 @@ function BookRow({ novel }: { novel: NovelListItem }) {
         href={`/novels/${novel.slug}`}
         className="group grid grid-cols-[56px_1fr] items-center gap-4 py-4 transition-colors hover:bg-white/[0.018] sm:grid-cols-[56px_1fr_auto] sm:gap-5"
       >
-        <BookCover title={novel.title} slug={novel.slug} />
+        <BookCover
+          title={novel.title}
+          slug={novel.slug}
+          imageSrc={
+            novel.coverImagePath
+              ? illustrationUrl(novel.slug, novel.coverImagePath)
+              : undefined
+          }
+        />
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="truncate text-[14px] font-medium tracking-[-0.01em] text-foreground group-hover:text-[#f4c477]">

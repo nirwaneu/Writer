@@ -1,6 +1,12 @@
 import { z } from "zod";
 import { assertSameOrigin, errorResponse, jsonOk, parseBody } from "@/lib/api";
-import { ensureChapter, getChapterContent, getNovel, saveChapterContent } from "@/lib/storage/novels";
+import {
+  deletePage,
+  ensureChapter,
+  getChapterContent,
+  getNovel,
+  saveChapterContent,
+} from "@/lib/storage/novels";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,6 +44,17 @@ export async function PUT(request: Request, { params }: Params) {
     );
     const outline = await getNovel(slug);
     return jsonOk({ chapter, outline });
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
+export async function DELETE(request: Request, { params }: Params) {
+  try {
+    assertSameOrigin(request);
+    const { slug, number } = await params;
+    const outline = await deletePage(slug, Number(number));
+    return jsonOk({ outline });
   } catch (error) {
     return errorResponse(error);
   }

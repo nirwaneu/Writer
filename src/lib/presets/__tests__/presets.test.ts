@@ -13,6 +13,7 @@ const models = {
   planner: "planner-model",
   executor: "executor-model",
   summarizer: "summarizer-model",
+  imagePrompter: "image-prompter-model",
 };
 
 const config: AppConfig = {

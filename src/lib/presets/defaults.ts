@@ -6,7 +6,7 @@ import type {
   PresetRoles,
   RoleConfig,
 } from "@/lib/schemas";
-import { DEFAULT_PRESET_ID } from "@/lib/presets/constants";
+import { DEFAULT_PRESET_ID, DEFAULT_IMAGE_PROMPTER_PARAMS, DEFAULT_IMAGE_PROMPTER_PROMPT } from "@/lib/presets/constants";
 
 const PLANNER_PROMPT = `You are the Planner inside VibeDraft, a drafting tool for professional novelists. You are the author's thinking partner for one chapter at a time.
 
@@ -36,6 +36,7 @@ export const DEFAULT_ROLE_PROMPTS = {
   planner: PLANNER_PROMPT,
   executor: EXECUTOR_PROMPT,
   summarizer: SUMMARIZER_PROMPT,
+  imagePrompter: DEFAULT_IMAGE_PROMPTER_PROMPT,
 } as const;
 
 export const DEFAULT_ROLE_PARAMS = {
@@ -63,6 +64,7 @@ export const DEFAULT_ROLE_PARAMS = {
     presencePenalty: 0,
     reasoningEffort: "",
   },
+  imagePrompter: { ...DEFAULT_IMAGE_PROMPTER_PARAMS },
 } as const;
 
 export function createDefaultRoles(): PresetRoles {
@@ -78,6 +80,10 @@ export function createDefaultRoles(): PresetRoles {
     summarizer: {
       systemPrompt: SUMMARIZER_PROMPT,
       params: { ...DEFAULT_ROLE_PARAMS.summarizer },
+    },
+    imagePrompter: {
+      systemPrompt: DEFAULT_IMAGE_PROMPTER_PROMPT,
+      params: { ...DEFAULT_ROLE_PARAMS.imagePrompter },
     },
   };
 }
@@ -145,6 +151,7 @@ export function createBookConfigSnapshot(
       planner: models.planner,
       executor: models.executor,
       summarizer: models.summarizer,
+      imagePrompter: models.imagePrompter ?? "",
     },
     roles: clonePresetRoles(preset.roles),
     createdAt: timestamp,

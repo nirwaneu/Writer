@@ -54,6 +54,7 @@ export async function POST(request: Request) {
       name: input.name.trim(),
       baseUrl,
       apiKey,
+      imageModels: [],
       connection: {
         ok: true,
         checkedAt: timestamp,

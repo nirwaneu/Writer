@@ -41,6 +41,9 @@ export async function PUT(request: Request, { params }: Params) {
     resolveModelRoute(global, input.models.planner);
     resolveModelRoute(global, input.models.executor);
     resolveModelRoute(global, input.models.summarizer);
+    if (input.models.imagePrompter.trim()) {
+      resolveModelRoute(global, input.models.imagePrompter);
+    }
     const config: BookConfig = await saveBookConfig(slug, input);
     return jsonOk({ config, source: "local" });
   } catch (error) {

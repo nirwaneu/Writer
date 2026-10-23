@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { DEFAULT_PRESET_ID } from "@/lib/presets/constants";
+import {
+  DEFAULT_IMAGE_PROMPTER_PARAMS,
+  DEFAULT_IMAGE_PROMPTER_PROMPT,
+  DEFAULT_PRESET_ID,
+} from "@/lib/presets/constants";
+
+const PREMISE_MAX = 200_000;
 
 export const chapterStatusSchema = z.enum([
   "planned",
@@ -46,10 +52,11 @@ export const outlineSchema = z.object({
   version: z.literal(1),
   id: z.string().min(1),
   title: z.string().min(1).max(200),
-  premise: z.string().max(20_000).default(""),
+  premise: z.string().max(PREMISE_MAX).default(""),
   status: z.enum(["brainstorming", "active", "complete"]).default("active"),
   characters: z.array(characterSchema).max(100).default([]),
   chapters: z.array(chapterSchema).max(500).default([]),
+  cover: illustrationSchema.optional(),
   currentChapter: z.number().int().positive().default(1),
   createdAt: z.string().min(1),
   updatedAt: z.string().min(1),
@@ -101,6 +108,10 @@ export const presetRolesSchema = z.object({
   planner: roleConfigSchema,
   executor: roleConfigSchema,
   summarizer: roleConfigSchema,
+  imagePrompter: roleConfigSchema.default({
+    systemPrompt: DEFAULT_IMAGE_PROMPTER_PROMPT,
+    params: { ...DEFAULT_IMAGE_PROMPTER_PARAMS },
+  }),
 });
 
 export const presetSchema = z.object({
@@ -117,6 +128,7 @@ export const modelRolesSchema = z.object({
   planner: z.string().trim().min(1).max(500),
   executor: z.string().trim().min(1).max(500),
   summarizer: z.string().trim().min(1).max(500),
+  imagePrompter: z.string().trim().max(500).default(""),
 });
 
 export const providerConnectionSchema = z.object({
@@ -131,6 +143,7 @@ export const providerSchema = z.object({
   name: z.string().trim().min(1).max(80),
   baseUrl: z.string().max(2_000).default(""),
   apiKey: z.string().max(4_000).default(""),
+  imageModels: z.array(z.string().trim().min(1).max(200)).max(200).default([]),
   connection: providerConnectionSchema.default({ ok: false }),
   createdAt: z.string().min(1),
   updatedAt: z.string().min(1),
@@ -173,6 +186,7 @@ export const appConfigSchema = z.object({
     planner: z.string().max(500).default(""),
     executor: z.string().max(500).default(""),
     summarizer: z.string().max(500).default(""),
+    imagePrompter: z.string().max(500).default(""),
   }),
   providers: z.array(providerSchema).max(20).default([]),
   connection: z.object({
@@ -215,6 +229,7 @@ export type PublicProvider = {
   baseUrl: string;
   hasApiKey: boolean;
   apiKeyHint: string | null;
+  imageModels: string[];
   connection: Provider["connection"];
   createdAt: string;
   updatedAt: string;
@@ -234,6 +249,7 @@ export type NovelListItem = {
   chapterCount: number;
   currentChapter: number;
   wordCount: number;
+  coverImagePath?: string;
   updatedAt: string;
   createdAt: string;
 };

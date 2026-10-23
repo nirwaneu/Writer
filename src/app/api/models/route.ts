@@ -19,14 +19,16 @@ export async function GET() {
           return {
             providerId: provider.id,
             providerName: provider.name,
-            models,
+            models: Array.from(new Set([...models, ...provider.imageModels])).sort(),
+            imageModels: provider.imageModels,
             error: null,
           };
         } catch (error) {
           return {
             providerId: provider.id,
             providerName: provider.name,
-            models: [],
+            models: [...provider.imageModels],
+            imageModels: provider.imageModels,
             error: error instanceof Error ? error.message : "Could not list models.",
           };
         }
@@ -40,6 +42,7 @@ export async function GET() {
         providerName: group.providerName,
         model,
         label: `[${group.providerName}] ${model}`,
+        isImage: group.imageModels.includes(model),
       })),
     );
 

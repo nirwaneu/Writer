@@ -2,6 +2,7 @@ export type ProviderModelGroup = {
   providerId: string;
   providerName: string;
   models: string[];
+  imageModels: string[];
   error: string | null;
 };
 
@@ -11,4 +12,5 @@ export type ModelOption = {
   providerName: string;
   model: string;
   label: string;
+  isImage: boolean;
 };

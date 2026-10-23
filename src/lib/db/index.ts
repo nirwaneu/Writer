@@ -19,17 +19,47 @@ const CHAPTER_COLUMNS: Array<[string, string]> = [
   ["image_updated_at", "TEXT"],
 ];
 
-function migrateChapterColumns(database: Database.Database): void {
+const GLOBAL_COLUMNS: Array<[string, string]> = [
+  ["image_prompter_model", "TEXT NOT NULL DEFAULT ''"],
+];
+
+const PROVIDER_COLUMNS: Array<[string, string]> = [
+  ["image_models_json", "TEXT NOT NULL DEFAULT '[]'"],
+];
+
+const BOOK_COLUMNS: Array<[string, string]> = [
+  ["image_prompter_model", "TEXT"],
+  ["cover_image_path", "TEXT"],
+  ["cover_image_prompt", "TEXT"],
+  ["cover_image_negative_prompt", "TEXT"],
+  ["cover_image_aspect_ratio", "TEXT"],
+  ["cover_image_provider_id", "TEXT"],
+  ["cover_image_model", "TEXT"],
+  ["cover_image_updated_at", "TEXT"],
+];
+
+function migrateColumns(
+  database: Database.Database,
+  table: string,
+  columns: Array<[string, string]>,
+): void {
   const existing = new Set(
-    (database.prepare("PRAGMA table_info(chapters)").all() as Array<{ name: string }>).map(
+    (database.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map(
       (column) => column.name,
     ),
   );
-  for (const [name, definition] of CHAPTER_COLUMNS) {
+  for (const [name, definition] of columns) {
     if (!existing.has(name)) {
-      database.exec(`ALTER TABLE chapters ADD COLUMN ${name} ${definition}`);
+      database.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
     }
   }
+}
+
+function migrateSchema(database: Database.Database): void {
+  migrateColumns(database, "chapters", CHAPTER_COLUMNS);
+  migrateColumns(database, "global_settings", GLOBAL_COLUMNS);
+  migrateColumns(database, "providers", PROVIDER_COLUMNS);
+  migrateColumns(database, "books", BOOK_COLUMNS);
 }
 
 const DDL = `
@@ -40,6 +70,7 @@ CREATE TABLE IF NOT EXISTS global_settings (
   planner_model TEXT NOT NULL DEFAULT '',
   executor_model TEXT NOT NULL DEFAULT '',
   summarizer_model TEXT NOT NULL DEFAULT '',
+  image_prompter_model TEXT NOT NULL DEFAULT '',
   connection_ok INTEGER NOT NULL DEFAULT 0,
   connection_checked_at TEXT,
   connection_latency_ms INTEGER,
@@ -53,6 +84,7 @@ CREATE TABLE IF NOT EXISTS providers (
   name TEXT NOT NULL,
   base_url TEXT NOT NULL,
   api_key TEXT NOT NULL DEFAULT '',
+  image_models_json TEXT NOT NULL DEFAULT '[]',
   connection_ok INTEGER NOT NULL DEFAULT 0,
   connection_checked_at TEXT,
   connection_latency_ms INTEGER,
@@ -87,9 +119,17 @@ CREATE TABLE IF NOT EXISTS books (
   planner_model TEXT,
   executor_model TEXT,
   summarizer_model TEXT,
+  image_prompter_model TEXT,
   roles_json TEXT,
   config_created_at TEXT,
-  config_updated_at TEXT
+  config_updated_at TEXT,
+  cover_image_path TEXT,
+  cover_image_prompt TEXT,
+  cover_image_negative_prompt TEXT,
+  cover_image_aspect_ratio TEXT,
+  cover_image_provider_id TEXT,
+  cover_image_model TEXT,
+  cover_image_updated_at TEXT
 );
 CREATE INDEX IF NOT EXISTS books_slug_idx ON books (slug);
 CREATE INDEX IF NOT EXISTS books_draft_idx ON books (is_draft);
@@ -153,7 +193,7 @@ async function initialize(): Promise<AppDb> {
   database.pragma("foreign_keys = ON");
   database.pragma("busy_timeout = 5000");
   database.exec(DDL);
-  migrateChapterColumns(database);
+  migrateSchema(database);
 
   const db = drizzle(database, { schema });
   await migrateLegacyFiles(db);

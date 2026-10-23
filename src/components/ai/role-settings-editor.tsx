@@ -14,6 +14,7 @@ const ROLE_HINTS: Record<AIRole, string> = {
   planner: "Thinks with you in the right rail. It plans beats; it does not write prose.",
   executor: "Writes the chapter into the left page from the Planner's plan.",
   summarizer: "Maintains the Story Vault after each chapter, and distills premises and titles.",
+  imagePrompter: "Turns chapter summaries and book titles into visual prompts for illustration models.",
 };
 
 export function RoleSettingsEditor({

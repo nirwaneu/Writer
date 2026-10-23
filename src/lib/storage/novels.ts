@@ -27,6 +27,7 @@ import {
   assertSlug,
   chapterHistoryDir,
   chapterPath,
+  illustrationPath,
   novelDir,
 } from "@/lib/storage/paths";
 import {
@@ -157,6 +158,21 @@ async function loadCharacters(bookId: string): Promise<Character[]> {
     }));
 }
 
+function coverFromRow(row: BookRow) {
+  if (!row.coverImagePath || !row.coverImageProviderId || !row.coverImageModel) {
+    return undefined;
+  }
+  return {
+    path: row.coverImagePath,
+    prompt: row.coverImagePrompt ?? "",
+    negativePrompt: row.coverImageNegativePrompt ?? "",
+    aspectRatio: (row.coverImageAspectRatio as ImageAspectRatio | null) ?? "portrait",
+    providerId: row.coverImageProviderId,
+    model: row.coverImageModel,
+    updatedAt: row.coverImageUpdatedAt ?? row.updatedAt,
+  };
+}
+
 async function outlineForRow(row: BookRow): Promise<Outline> {
   const [bookChapters, bookCharacters] = await Promise.all([
     loadChapters(row.id),
@@ -170,6 +186,7 @@ async function outlineForRow(row: BookRow): Promise<Outline> {
   const currentChapter = numbers.has(row.currentChapter)
     ? row.currentChapter
     : lastChapter?.number ?? bookChapters[bookChapters.length - 1]?.number ?? 1;
+  const cover = coverFromRow(row);
 
   return {
     version: 1,
@@ -179,6 +196,7 @@ async function outlineForRow(row: BookRow): Promise<Outline> {
     status: row.status,
     characters: bookCharacters,
     chapters: bookChapters,
+    ...(cover ? { cover } : {}),
     currentChapter,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -193,6 +211,7 @@ function toListItem(row: {
   currentChapter: number;
   wordCount: number | null;
   chapterCount: number | null;
+  coverImagePath: string | null;
   updatedAt: string;
   createdAt: string;
 }): NovelListItem {
@@ -204,6 +223,7 @@ function toListItem(row: {
     chapterCount: Number(row.chapterCount ?? 0),
     currentChapter: row.currentChapter,
     wordCount: Number(row.wordCount ?? 0),
+    ...(row.coverImagePath ? { coverImagePath: row.coverImagePath } : {}),
     updatedAt: row.updatedAt,
     createdAt: row.createdAt,
   };
@@ -218,6 +238,7 @@ export async function listNovels(): Promise<NovelListItem[]> {
       premise: books.premise,
       status: books.status,
       currentChapter: books.currentChapter,
+      coverImagePath: books.coverImagePath,
       createdAt: books.createdAt,
       updatedAt: books.updatedAt,
       chapterCount: sql<number>`(select count(*) from chapters where chapters.book_id = ${books.id} and chapters.kind = 'chapter')`,
@@ -295,6 +316,7 @@ export async function createDraft(
         plannerModel: config.models.planner,
         executorModel: config.models.executor,
         summarizerModel: config.models.summarizer,
+        imagePrompterModel: config.models.imagePrompter,
         rolesJson: config.roles,
         configCreatedAt: config.createdAt,
         configUpdatedAt: config.updatedAt,
@@ -702,6 +724,127 @@ export async function advanceChapter(slug: string, from: number): Promise<Outlin
 
     return getNovel(slug);
   });
+}
+
+export async function saveCharacters(
+  slug: string,
+  characters: Character[],
+): Promise<Outline> {
+  const row = await getBookRowBySlug(slug);
+  const db = await getDb();
+  const timestamp = now();
+  db.transaction((tx) => {
+    tx.delete(charactersTable).where(eq(charactersTable.bookId, row.id)).run();
+    characters.forEach((character, index) => {
+      tx.insert(charactersTable)
+        .values({
+          bookId: row.id,
+          name: character.name,
+          role: character.role,
+          description: character.description,
+          sortOrder: index,
+        })
+        .run();
+    });
+    tx.update(books).set({ updatedAt: timestamp }).where(eq(books.id, row.id)).run();
+  });
+  return getNovel(slug);
+}
+
+export async function deletePage(slug: string, number: number): Promise<Outline> {
+  assertChapterNumber(number);
+  const row = await getBookRowBySlug(slug);
+  return withLock(`book:${row.id}`, async () => {
+    const db = await getDb();
+    const pages = db
+      .select()
+      .from(chaptersTable)
+      .where(eq(chaptersTable.bookId, row.id))
+      .orderBy(chaptersTable.number)
+      .all();
+    const target = pages.find((page) => page.number === number);
+    if (!target) throw new NotFoundError(`Page ${number} does not exist.`);
+    if (pages.length <= 1) {
+      throw new AppError("BAD_REQUEST", "A book needs at least one page.", { status: 400 });
+    }
+
+    const remaining = pages.filter((page) => page.number !== number);
+    const fallbackCurrent =
+      remaining.find((page) => page.number === row.currentChapter) ??
+      [...remaining].reverse().find((page) => page.kind === "chapter") ??
+      remaining[remaining.length - 1];
+    const timestamp = now();
+
+    db.transaction((tx) => {
+      if (target.kind === "chapter") {
+        tx.delete(chatsTable)
+          .where(
+            and(
+              eq(chatsTable.bookId, row.id),
+              eq(chatsTable.scope, `chapter_${number}`),
+            ),
+          )
+          .run();
+      }
+      tx.delete(chaptersTable)
+        .where(
+          and(
+            eq(chaptersTable.bookId, row.id),
+            eq(chaptersTable.number, number),
+          ),
+        )
+        .run();
+      tx.update(books)
+        .set({
+          currentChapter: fallbackCurrent?.number ?? 1,
+          updatedAt: timestamp,
+        })
+        .where(eq(books.id, row.id))
+        .run();
+    });
+
+    await fs.rm(chapterPath(slug, number), { force: true }).catch(() => undefined);
+    await fs
+      .rm(chapterHistoryDir(slug, number), { recursive: true, force: true })
+      .catch(() => undefined);
+    if (target.kind === "illustration" && target.imagePath) {
+      await fs
+        .rm(illustrationPath(slug, target.imagePath), { force: true })
+        .catch(() => undefined);
+    }
+
+    return getNovel(slug);
+  });
+}
+
+export async function saveCoverResult(
+  slug: string,
+  input: {
+    path: string;
+    prompt: string;
+    negativePrompt: string;
+    aspectRatio: ImageAspectRatio;
+    providerId: string;
+    model: string;
+  },
+): Promise<Outline> {
+  const row = await getBookRowBySlug(slug);
+  const db = await getDb();
+  const timestamp = now();
+  db.update(books)
+    .set({
+      coverImagePath: input.path,
+      coverImagePrompt: input.prompt,
+      coverImageNegativePrompt: input.negativePrompt,
+      coverImageAspectRatio: input.aspectRatio,
+      coverImageProviderId: input.providerId,
+      coverImageModel: input.model,
+      coverImageUpdatedAt: timestamp,
+      updatedAt: timestamp,
+    })
+    .where(eq(books.id, row.id))
+    .run();
+  return getNovel(slug);
 }
 
 export async function addPage(

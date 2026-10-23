@@ -207,6 +207,64 @@ export function buildTitleMessages(
   ];
 }
 
+export function buildCharacterExtractionMessages(
+  outline: Outline,
+  rolePrompt: string,
+): ChatInputMessage[] {
+  return [
+    systemOnly(rolePrompt),
+    userMessage([
+      "[TASK]",
+      "Extract the characters implied by this novel's premise and record them for the Story Vault.",
+      "Return only a JSON array. Each item must have exactly: name, role, description.",
+      "Use 3-8 characters only. role is a short label such as protagonist, antagonist, ally, or minor. description is one or two factual sentences about want, obstacle, secret, or relationship. Do not invent characters the premise does not support; if only the protagonist is clear, return that one.",
+      "",
+      "[TITLE]",
+      trim(outline.title, 500),
+      "",
+      "[PREMISE]",
+      trim(outline.premise || "No premise recorded.", 12_000),
+      "",
+      "Return the JSON array now.",
+    ].join("\n")),
+  ];
+}
+
+export function buildImagePromptMessages(
+  context: { kind: "chapter" | "cover"; title: string; premise: string; summary?: string; previousTitle?: string },
+  rolePrompt: string,
+): ChatInputMessage[] {
+  const subject =
+    context.kind === "cover"
+      ? [
+          "[TASK]",
+          "Write a book-cover illustration prompt from the title and premise.",
+          "Make it iconic and atmospheric, suitable for a literary novel cover. Leave breathing room for typography; do not put text in the image.",
+          "",
+          "[TITLE]",
+          trim(context.title, 500),
+          "",
+          "[PREMISE]",
+          trim(context.premise || "No premise recorded.", 8_000),
+        ]
+      : [
+          "[TASK]",
+          "Write an illustration prompt for the current chapter page, inspired by the previous chapter's summary.",
+          "Capture a concrete visual moment, place, object, or character that belongs between these chapters. Do not illustrate abstract themes or add captions.",
+          "",
+          "[NOVEL]",
+          trim(context.title, 500),
+          "",
+          "[PREVIOUS CHAPTER]",
+          trim(context.previousTitle || "Previous chapter", 500),
+          "",
+          "[PREVIOUS CHAPTER SUMMARY]",
+          trim(context.summary || "No previous chapter summary recorded.", 8_000),
+        ];
+
+  return [systemOnly(rolePrompt), userMessage(subject.join("\n"))];
+}
+
 export function buildChapterSummaryMessages(
   outline: Outline,
   chapter: number,

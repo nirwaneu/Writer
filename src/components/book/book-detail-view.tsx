@@ -14,6 +14,7 @@ import {
   Loader2,
   MoreHorizontal,
   PencilLine,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -51,10 +52,12 @@ import {
 import { BookCover } from "@/components/library/book-cover";
 import { RelativeTime } from "@/components/relative-time";
 import { AddPageMenu } from "@/components/workspace/add-page-menu";
+import { CharacterEditorDialog } from "@/components/book/character-editor-dialog";
+import { DeletePageButton } from "@/components/workspace/delete-page-button";
 import { chapterStatusMeta } from "@/lib/chapter-status";
-import { chapterDisplayNumber } from "@/lib/pages";
+import { chapterDisplayNumber, illustrationUrl } from "@/lib/pages";
 import { formatDate } from "@/lib/utils";
-import type { Outline } from "@/lib/schemas";
+import type { Chapter, Character, Outline } from "@/lib/schemas";
 
 const numberFormat = new Intl.NumberFormat("en");
 
@@ -78,7 +81,92 @@ export function BookDetailView({
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [statusPending, setStatusPending] = useState(false);
+  const [characters, setCharacters] = useState<Character[] | null>(null);
+  const [generatingCharacters, setGeneratingCharacters] = useState(false);
+  const [savingCharacters, setSavingCharacters] = useState(false);
+  const [characterEditorOpen, setCharacterEditorOpen] = useState(false);
+  const [charactersError, setCharactersError] = useState<string | null>(null);
+  const [deletingPageNumber, setDeletingPageNumber] = useState<number | null>(null);
   const complete = outline.status === "complete";
+  const displayCharacters = characters ?? outline.characters;
+
+  async function generateCharacters() {
+    setGeneratingCharacters(true);
+    setCharactersError(null);
+    try {
+      const response = await fetch(`/api/novels/${slug}/characters/generate`, {
+        method: "POST",
+      });
+      const payload = (await response.json()) as {
+        outline?: Outline;
+        error?: { message?: string };
+      };
+      if (!response.ok || !payload.outline) {
+        setCharactersError(
+          payload.error?.message || "The characters could not be generated.",
+        );
+        return;
+      }
+      setCharacters(payload.outline.characters);
+      toast.success("Planner extracted the character sheet.");
+      router.refresh();
+    } catch {
+      setCharactersError("Could not reach the app server.");
+    } finally {
+      setGeneratingCharacters(false);
+    }
+  }
+
+  async function saveCharacters(next: Character[]) {
+    setSavingCharacters(true);
+    setCharactersError(null);
+    try {
+      const response = await fetch(`/api/novels/${slug}/characters`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ characters: next }),
+      });
+      const payload = (await response.json()) as {
+        outline?: Outline;
+        error?: { message?: string };
+      };
+      if (!response.ok || !payload.outline) {
+        setCharactersError(payload.error?.message || "The characters could not be saved.");
+        return;
+      }
+      setCharacters(payload.outline.characters);
+      setCharacterEditorOpen(false);
+      toast.success("Character sheet saved.");
+      router.refresh();
+    } catch {
+      setCharactersError("Could not reach the app server.");
+    } finally {
+      setSavingCharacters(false);
+    }
+  }
+
+  async function deletePage(page: Chapter) {
+    setDeletingPageNumber(page.number);
+    try {
+      const response = await fetch(`/api/novels/${slug}/chapters/${page.number}`, {
+        method: "DELETE",
+      });
+      const payload = (await response.json()) as {
+        outline?: Outline;
+        error?: { message?: string };
+      };
+      if (!response.ok) {
+        toast.error(payload.error?.message || "The page could not be deleted.");
+        return;
+      }
+      toast.success("Page deleted.");
+      router.refresh();
+    } catch {
+      toast.error("Could not reach the app server.");
+    } finally {
+      setDeletingPageNumber(null);
+    }
+  }
 
   async function saveMeta(event: React.FormEvent) {
     event.preventDefault();
@@ -203,7 +291,13 @@ export function BookDetailView({
               className="pointer-events-none absolute -left-10 -top-10 size-72 rounded-full bg-[radial-gradient(circle,rgba(242,169,59,0.1),transparent_65%)]"
               aria-hidden="true"
             />
-            <BookCover title={outline.title} slug={slug} size="lg" className="relative" />
+            <BookCover
+              title={outline.title}
+              slug={slug}
+              imageSrc={outline.cover ? illustrationUrl(slug, outline.cover.path) : undefined}
+              size="lg"
+              className="relative"
+            />
           </div>
 
           <div className="min-w-0">
@@ -269,10 +363,10 @@ export function BookDetailView({
                 const meta = chapterStatusMeta(chapter.status, chapter.summaryStale);
                 const illustration = chapter.kind === "illustration";
                 return (
-                  <li key={chapter.number}>
+                  <li key={chapter.number} className="flex items-center gap-2">
                     <Link
                       href={`/novels/${slug}/write?chapter=${chapter.number}`}
-                      className="group grid grid-cols-[38px_minmax(0,1fr)] gap-4 py-4 transition-colors hover:bg-white/[0.018] sm:grid-cols-[38px_minmax(0,1fr)_auto]"
+                      className="group grid min-w-0 flex-1 grid-cols-[38px_minmax(0,1fr)] gap-4 py-4 transition-colors hover:bg-white/[0.018] sm:grid-cols-[38px_minmax(0,1fr)_auto]"
                     >
                       <span className="font-mono text-[11px] tabular text-muted-foreground">
                         {illustration
@@ -308,6 +402,12 @@ export function BookDetailView({
                         <ArrowRight className="size-4 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
                       </div>
                     </Link>
+                    <DeletePageButton
+                      page={chapter}
+                      compact
+                      deleting={deletingPageNumber === chapter.number}
+                      onDelete={(page) => void deletePage(page)}
+                    />
                   </li>
                 );
               })}
@@ -330,12 +430,36 @@ export function BookDetailView({
                   Characters
                 </h2>
                 <span className="font-mono text-[10px] text-muted-foreground">
-                  {outline.characters.length}
+                  {displayCharacters.length}
                 </span>
               </div>
-              {outline.characters.length ? (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => void generateCharacters()}
+                  disabled={generatingCharacters}
+                >
+                  {generatingCharacters ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                  {generatingCharacters ? "Extracting…" : "Generate Characters"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setCharacterEditorOpen(true)}
+                >
+                  <PencilLine />
+                  Edit Characters
+                </Button>
+              </div>
+              {charactersError ? (
+                <p className="mt-2 rounded-md border border-[#5a2c25] bg-[#241411] p-2.5 text-[11px] leading-relaxed text-[#f2937f]">
+                  {charactersError}
+                </p>
+              ) : null}
+              {displayCharacters.length ? (
                 <ul className="mt-2 divide-y divide-border border-y border-border">
-                  {outline.characters.map((character) => (
+                  {displayCharacters.map((character) => (
                     <li key={character.name} className="py-2.5">
                       <p className="text-[12.5px] font-medium text-foreground/90">
                         {character.name}
@@ -355,7 +479,7 @@ export function BookDetailView({
                 </ul>
               ) : (
                 <p className="mt-2 text-[12px] text-muted-foreground">
-                  No character sheet yet.
+                  No character sheet yet. Generate one from the premise or edit it manually.
                 </p>
               )}
             </section>
@@ -422,7 +546,7 @@ export function BookDetailView({
                 value={premise}
                 onChange={(event) => setPremise(event.target.value)}
                 className="min-h-36"
-                maxLength={20_000}
+                maxLength={200_000}
               />
             </div>
             {formError ? (
@@ -440,6 +564,16 @@ export function BookDetailView({
           </form>
         </DialogContent>
       </Dialog>
+
+      {characterEditorOpen ? (
+        <CharacterEditorDialog
+          open
+          onOpenChange={setCharacterEditorOpen}
+          initial={displayCharacters}
+          saving={savingCharacters}
+          onSave={(next) => void saveCharacters(next)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -454,3 +588,4 @@ function Stat({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+

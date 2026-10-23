@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   BookMarked,
   Check,
@@ -26,9 +27,10 @@ import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RoleSettingsEditor } from "@/components/ai/role-settings-editor";
+import { CoverPanel } from "@/components/illustration/cover-panel";
 import { clonePresetRoles } from "@/lib/presets/defaults";
-import { AI_ROLES, ROLE_LABELS, type AIRole } from "@/lib/presets/constants";
-import type { BookConfig, ModelRoles, Preset } from "@/lib/schemas";
+import { AI_ROLES, CORE_ROLES, ROLE_LABELS, type AIRole } from "@/lib/presets/constants";
+import type { BookConfig, Illustration, ModelRoles, Outline, Preset } from "@/lib/schemas";
 import type { ModelOption, ProviderModelGroup } from "@/lib/ai/model-options";
 
 type ConfigResponse = {
@@ -59,8 +61,12 @@ export function BookSettingsDialog({
   const [defaultPresetId, setDefaultPresetId] = useState("");
   const [modelGroups, setModelGroups] = useState<ProviderModelGroup[]>([]);
   const [modelOptions, setModelOptions] = useState<ModelOption[]>([]);
-  const [activeRole, setActiveRole] = useState<AIRole>("planner");
+  const [activeRole, setActiveRole] = useState<AIRole | "cover">("planner");
   const [presetToLoad, setPresetToLoad] = useState("");
+  const [bookTitle, setBookTitle] = useState("");
+  const [cover, setCover] = useState<Illustration | undefined>();
+  const [providers, setProviders] = useState<Array<{ id: string; name: string }>>([]);
+  const router = useRouter();
 
   const loadModels = useCallback(async () => {
     setLoadingModels(true);
@@ -106,9 +112,19 @@ export function BookSettingsDialog({
       setModelNote(null);
       setPresetToLoad("");
       try {
-        const response = await fetch(`/api/novels/${slug}/config`, { cache: "no-store" });
-        const payload = (await response.json()) as ConfigResponse;
-        if (!response.ok || !payload.config) {
+        const [configResponse, novelResponse, providersResponse] = await Promise.all([
+          fetch(`/api/novels/${slug}/config`, { cache: "no-store" }),
+          fetch(`/api/novels/${slug}`, { cache: "no-store" }),
+          fetch("/api/providers", { cache: "no-store" }),
+        ]);
+        const payload = (await configResponse.json()) as ConfigResponse;
+        const novelPayload = (await novelResponse.json().catch(() => ({}))) as {
+          outline?: Outline;
+        };
+        const providersPayload = (await providersResponse
+          .json()
+          .catch(() => ({}))) as { providers?: Array<{ id: string; name: string }> };
+        if (!configResponse.ok || !payload.config) {
           if (!cancelled) {
             setError(payload.error?.message || "The book settings could not be loaded.");
             setLoading(false);
@@ -117,6 +133,9 @@ export function BookSettingsDialog({
         }
         if (cancelled) return;
         setConfig(payload.config);
+        setBookTitle(novelPayload.outline?.title ?? "");
+        setCover(novelPayload.outline?.cover);
+        setProviders(providersPayload.providers ?? []);
         setSource(payload.source ?? "fallback");
         setPresets(payload.presets ?? []);
         setDefaultPresetId(payload.defaultPresetId ?? "");
@@ -163,8 +182,8 @@ export function BookSettingsDialog({
 
   async function save() {
     if (!config) return;
-    if (AI_ROLES.some((role) => !config.models[role].trim())) {
-      setError("Choose a model for all three roles.");
+    if (CORE_ROLES.some((role) => !config.models[role].trim())) {
+      setError("Choose a model for Planner, Executor, and Summarizer.");
       return;
     }
     if (AI_ROLES.some((role) => !config.roles[role].systemPrompt.trim())) {
@@ -300,27 +319,44 @@ export function BookSettingsDialog({
               </p>
             </div>
 
-            <Tabs value={activeRole} onValueChange={(value) => setActiveRole(value as AIRole)}>
+            <Tabs
+              value={activeRole}
+              onValueChange={(value) => setActiveRole(value as AIRole | "cover")}
+            >
               <TabsList>
                 {AI_ROLES.map((role) => (
                   <TabsTrigger key={role} value={role}>
                     {ROLE_LABELS[role]}
                   </TabsTrigger>
                 ))}
+                <TabsTrigger value="cover">Cover</TabsTrigger>
               </TabsList>
             </Tabs>
 
-            <RoleSettingsEditor
-              role={activeRole}
-              value={config.roles[activeRole]}
-              onChange={(value) => updateRole(activeRole, value)}
-              model={config.models[activeRole]}
-              onModelChange={(model) => updateModel(activeRole, model)}
-              modelGroups={modelGroups}
-              modelOptions={modelOptions}
-              modelLoading={loadingModels}
-              modelError={modelNote}
-            />
+            {activeRole === "cover" ? (
+              <CoverPanel
+                slug={slug}
+                title={bookTitle || "Untitled Novel"}
+                cover={cover}
+                providers={providers}
+                onSaved={(outline) => {
+                  setCover(outline.cover);
+                  router.refresh();
+                }}
+              />
+            ) : (
+              <RoleSettingsEditor
+                role={activeRole}
+                value={config.roles[activeRole]}
+                onChange={(value) => updateRole(activeRole, value)}
+                model={config.models[activeRole]}
+                onModelChange={(model) => updateModel(activeRole, model)}
+                modelGroups={modelGroups}
+                modelOptions={modelOptions}
+                modelLoading={loadingModels}
+                modelError={modelNote}
+              />
+            )}
 
             {modelNote ? (
               <p className="rounded-md border border-border bg-[#0c1218] p-2.5 text-[10.5px] leading-relaxed text-muted-foreground">

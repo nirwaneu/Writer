@@ -18,10 +18,17 @@ export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ id: string }> };
 
+const imageModelsSchema = z.array(z.string().trim().min(1).max(200)).max(200);
+
 const updateSchema = z.object({
   name: z.string().trim().min(1).max(80),
   baseUrl: z.string().min(1).max(2_000),
   apiKey: z.string().max(4_000).optional(),
+  imageModels: imageModelsSchema.optional(),
+});
+
+const patchSchema = z.object({
+  imageModels: imageModelsSchema,
 });
 
 export async function PUT(request: Request, { params }: Params) {
@@ -54,12 +61,48 @@ export async function PUT(request: Request, { params }: Params) {
             name: input.name.trim(),
             baseUrl,
             apiKey,
+            imageModels: input.imageModels ?? provider.imageModels,
             connection: {
               ok: true,
               checkedAt: timestamp,
               latencyMs: tested.latencyMs,
               detail: tested.detail,
             },
+            updatedAt: timestamp,
+          }
+        : provider,
+    );
+    const saved = await saveConfig({ ...config, providers, updatedAt: timestamp });
+    return jsonOk({
+      providers: toPublicConfig(saved)?.providers ?? [],
+      models: saved.models,
+      configured: isConfigured(saved),
+    });
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
+export async function PATCH(request: Request, { params }: Params) {
+  try {
+    assertSameOrigin(request);
+    const { id } = await params;
+    const input = await parseBody(request, patchSchema);
+    const config = await getConfig();
+    if (!config) {
+      throw new AppError("CONFIG_REQUIRED", "No provider configuration exists yet.", {
+        status: 428,
+      });
+    }
+    const existing = config.providers.find((provider) => provider.id === id);
+    if (!existing) throw new NotFoundError("That provider no longer exists.");
+
+    const timestamp = new Date().toISOString();
+    const providers = config.providers.map((provider) =>
+      provider.id === id
+        ? {
+            ...provider,
+            imageModels: Array.from(new Set(input.imageModels)),
             updatedAt: timestamp,
           }
         : provider,
@@ -94,8 +137,12 @@ export async function DELETE(request: Request, { params }: Params) {
     }
 
     const firstId = config.providers[0]?.id;
-    const usedByDefaults = [config.models.planner, config.models.executor, config.models.summarizer].filter(
-      (value) => {
+    const usedByDefaults = [
+      config.models.planner,
+      config.models.executor,
+      config.models.summarizer,
+      config.models.imagePrompter,
+    ].filter((value) => {
         const parsed = parseModelValue(value);
         return parsed.model && (parsed.providerId ? parsed.providerId === id : firstId === id);
       },
@@ -116,11 +163,17 @@ export async function DELETE(request: Request, { params }: Params) {
         plannerModel: books.plannerModel,
         executorModel: books.executorModel,
         summarizerModel: books.summarizerModel,
+        imagePrompterModel: books.imagePrompterModel,
       })
       .from(books)
       .all();
     const usedByBooks = bookRows.filter((book) =>
-      [book.plannerModel, book.executorModel, book.summarizerModel].some((value) => {
+      [
+        book.plannerModel,
+        book.executorModel,
+        book.summarizerModel,
+        book.imagePrompterModel,
+      ].some((value) => {
         if (!value) return false;
         const parsed = parseModelValue(value);
         return parsed.model && (parsed.providerId ? parsed.providerId === id : firstId === id);

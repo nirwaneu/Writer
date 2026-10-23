@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  Image as ImageIcon,
   Check,
   Loader2,
   Pencil,
@@ -40,7 +41,12 @@ import { Label } from "@/components/ui/label";
 import { StatusDot } from "@/components/status-dot";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ModelCombobox } from "@/components/models/model-combobox";
-import { AI_ROLES, ROLE_LABELS, type AIRole } from "@/lib/presets/constants";
+import {
+  AI_ROLES,
+  CORE_ROLES,
+  ROLE_LABELS,
+  type AIRole,
+} from "@/lib/presets/constants";
 import { useAvailableModels } from "@/lib/use-available-models";
 import type { ModelRoles, PublicAppConfig, PublicProvider } from "@/lib/schemas";
 
@@ -58,6 +64,12 @@ type FormState = {
 };
 
 const EMPTY_FORM: FormState = { name: "", baseUrl: "", apiKey: "" };
+const EMPTY_MODELS: ModelRoles = {
+  planner: "",
+  executor: "",
+  summarizer: "",
+  imagePrompter: "",
+};
 
 export function SettingsScreen({
   mode,
@@ -71,7 +83,7 @@ export function SettingsScreen({
     initialConfig?.providers ?? [],
   );
   const [models, setModels] = useState<ModelRoles>(
-    initialConfig?.models ?? { planner: "", executor: "", summarizer: "" },
+    initialConfig?.models ?? EMPTY_MODELS,
   );
   const [activeTab, setActiveTab] = useState<"providers" | "models">(
     mode === "setup" && !initialConfig?.providers.length ? "providers" : "models",
@@ -86,6 +98,11 @@ export function SettingsScreen({
   const [savingModels, setSavingModels] = useState(false);
   const [modelsError, setModelsError] = useState<string | null>(null);
   const [savedModels, setSavedModels] = useState<ModelRoles>(models);
+  const [imageProvider, setImageProvider] = useState<PublicProvider | null>(null);
+  const [imageDraft, setImageDraft] = useState<string[]>([]);
+  const [customImageModel, setCustomImageModel] = useState("");
+  const [savingImageModels, setSavingImageModels] = useState(false);
+  const [imageModelsError, setImageModelsError] = useState<string | null>(null);
 
   const { groups, options, loading, error, refresh } = useAvailableModels();
 
@@ -93,12 +110,25 @@ export function SettingsScreen({
     () => providers.find((provider) => provider.id === editingId) ?? null,
     [providers, editingId],
   );
+  const imageProviderGroup = imageProvider
+    ? groups.find((group) => group.providerId === imageProvider.id)
+    : undefined;
+  const imageModelChoices = imageProvider
+    ? Array.from(
+        new Set([
+          ...(imageProviderGroup?.models ?? []),
+          ...imageProvider.imageModels,
+          ...imageDraft,
+        ]),
+      ).sort()
+    : [];
 
   const modelsDirty =
     models.planner !== savedModels.planner ||
     models.executor !== savedModels.executor ||
-    models.summarizer !== savedModels.summarizer;
-  const modelsComplete = AI_ROLES.every((role) => Boolean(models[role].trim()));
+    models.summarizer !== savedModels.summarizer ||
+    models.imagePrompter !== savedModels.imagePrompter;
+  const modelsComplete = CORE_ROLES.every((role) => Boolean(models[role].trim()));
   const configured = providers.length > 0 && modelsComplete;
 
   function openCreate() {
@@ -113,6 +143,54 @@ export function SettingsScreen({
     setForm({ name: provider.name, baseUrl: provider.baseUrl, apiKey: "" });
     setFormError(null);
     setDialogOpen(true);
+  }
+
+  function openImageModels(provider: PublicProvider) {
+    setImageProvider(provider);
+    setImageDraft(provider.imageModels);
+    setCustomImageModel("");
+    setImageModelsError(null);
+  }
+
+  function toggleImageModel(model: string) {
+    setImageDraft((current) =>
+      current.includes(model)
+        ? current.filter((item) => item !== model)
+        : [...current, model],
+    );
+  }
+
+  function addCustomImageModel() {
+    const value = customImageModel.trim();
+    if (!value) return;
+    setImageDraft((current) => (current.includes(value) ? current : [...current, value]));
+    setCustomImageModel("");
+  }
+
+  async function saveImageModels() {
+    if (!imageProvider) return;
+    setSavingImageModels(true);
+    setImageModelsError(null);
+    try {
+      const response = await fetch(`/api/providers/${imageProvider.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageModels: imageDraft }),
+      });
+      const payload = (await response.json()) as ProvidersResponse;
+      if (!response.ok) {
+        setImageModelsError(payload.error?.message || "Image models could not be saved.");
+        return;
+      }
+      applyProviders(payload);
+      void refresh();
+      setImageProvider(null);
+      toast.success("Image models updated.");
+    } catch {
+      setImageModelsError("Could not reach the app server.");
+    } finally {
+      setSavingImageModels(false);
+    }
   }
 
   function applyProviders(payload: ProvidersResponse) {
@@ -232,7 +310,7 @@ export function SettingsScreen({
 
   async function saveModels() {
     if (!modelsComplete) {
-      setModelsError("Choose a model for all three roles.");
+      setModelsError("Choose a model for Planner, Executor, and Summarizer.");
       return;
     }
     setSavingModels(true);
@@ -363,6 +441,17 @@ export function SettingsScreen({
                             <Button
                               size="sm"
                               variant="ghost"
+                              onClick={() => openImageModels(provider)}
+                            >
+                              <ImageIcon />
+                              Image models
+                              <span className="font-mono text-[10px] text-muted-foreground">
+                                {provider.imageModels.length}
+                              </span>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
                               onClick={() => openEdit(provider)}
                             >
                               <Pencil />
@@ -468,6 +557,7 @@ export function SettingsScreen({
                       <div>
                         <Label htmlFor={`default-model-${role}`}>
                           {ROLE_LABELS[role]}
+                          {role === "imagePrompter" ? " (optional)" : ""}
                         </Label>
                         <p className="mt-1 text-[10.5px] leading-relaxed text-muted-foreground">
                           {roleDescription(role)}
@@ -614,6 +704,98 @@ export function SettingsScreen({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={Boolean(imageProvider)} onOpenChange={(open) => !open && setImageProvider(null)}>
+        <DialogContent className="max-h-[86vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Image models · {imageProvider?.name}</DialogTitle>
+            <DialogDescription>
+              Flag the models that generate images. Illustration pages only show flagged
+              models for this provider. If none are flagged, all models are shown.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            {imageProviderGroup?.error ? (
+              <p className="rounded-md border border-[#5a2c25] bg-[#241411] p-2.5 text-[11.5px] leading-relaxed text-[#f2937f]">
+                {imageProviderGroup.error}
+              </p>
+            ) : null}
+
+            <div className="max-h-[40vh] space-y-1 overflow-y-auto rounded-md border border-border bg-[#0c1218] p-2">
+              {imageModelChoices.length ? (
+                imageModelChoices.map((model) => (
+                  <label
+                    key={model}
+                    className="flex cursor-pointer items-center gap-2.5 rounded px-2 py-1.5 text-[12px] hover:bg-white/[0.04]"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={imageDraft.includes(model)}
+                      onChange={() => toggleImageModel(model)}
+                      className="size-3.5 accent-[#f2a93b]"
+                    />
+                    <span className="font-mono text-[11px]">{model}</span>
+                  </label>
+                ))
+              ) : (
+                <p className="px-2 py-3 text-[11.5px] text-muted-foreground">
+                  No models listed. Add an image model ID below.
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-end gap-2">
+              <div className="flex-1 space-y-1.5">
+                <Label htmlFor="custom-image-model">Add model ID</Label>
+                <Input
+                  id="custom-image-model"
+                  value={customImageModel}
+                  onChange={(event) => setCustomImageModel(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      addCustomImageModel();
+                    }
+                  }}
+                  placeholder="e.g. flux-1.1-pro"
+                  spellCheck={false}
+                  maxLength={200}
+                />
+              </div>
+              <Button type="button" variant="secondary" onClick={addCustomImageModel}>
+                Add
+              </Button>
+            </div>
+
+            {imageDraft.length ? (
+              <p className="text-[10.5px] leading-relaxed text-muted-foreground">
+                Flagged: <span className="font-mono">{imageDraft.join(", ")}</span>
+              </p>
+            ) : null}
+
+            {imageModelsError ? (
+              <p className="rounded-md border border-[#5a2c25] bg-[#241411] p-2.5 text-[11.5px] leading-relaxed text-[#f2937f]">
+                {imageModelsError}
+              </p>
+            ) : null}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              onClick={() => setImageProvider(null)}
+              disabled={savingImageModels}
+            >
+              Cancel
+            </Button>
+            <Button onClick={() => void saveImageModels()} disabled={savingImageModels}>
+              {savingImageModels ? <Loader2 className="animate-spin" /> : <Check />}
+              {savingImageModels ? "Saving…" : "Save image models"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -621,5 +803,6 @@ export function SettingsScreen({
 function roleDescription(role: AIRole): string {
   if (role === "planner") return "Plans chapters in the rail.";
   if (role === "executor") return "Drafts the chapter prose.";
+  if (role === "imagePrompter") return "Writes image prompts for illustrations and covers.";
   return "Maintains story continuity.";
 }

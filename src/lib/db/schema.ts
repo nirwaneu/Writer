@@ -14,6 +14,7 @@ export const globalSettings = sqliteTable("global_settings", {
   plannerModel: text("planner_model").notNull().default(""),
   executorModel: text("executor_model").notNull().default(""),
   summarizerModel: text("summarizer_model").notNull().default(""),
+  imagePrompterModel: text("image_prompter_model").notNull().default(""),
   connectionOk: integer("connection_ok", { mode: "boolean" }).notNull().default(false),
   connectionCheckedAt: text("connection_checked_at"),
   connectionLatencyMs: integer("connection_latency_ms"),
@@ -29,6 +30,10 @@ export const providers = sqliteTable(
     name: text("name").notNull(),
     baseUrl: text("base_url").notNull(),
     apiKey: text("api_key").notNull().default(""),
+    imageModelsJson: text("image_models_json", { mode: "json" })
+      .$type<string[]>()
+      .notNull()
+      .default([]),
     connectionOk: integer("connection_ok", { mode: "boolean" }).notNull().default(false),
     connectionCheckedAt: text("connection_checked_at"),
     connectionLatencyMs: integer("connection_latency_ms"),
@@ -66,9 +71,17 @@ export const books = sqliteTable(
     plannerModel: text("planner_model"),
     executorModel: text("executor_model"),
     summarizerModel: text("summarizer_model"),
+    imagePrompterModel: text("image_prompter_model"),
     rolesJson: text("roles_json", { mode: "json" }).$type<PresetRoles>(),
     configCreatedAt: text("config_created_at"),
     configUpdatedAt: text("config_updated_at"),
+    coverImagePath: text("cover_image_path"),
+    coverImagePrompt: text("cover_image_prompt"),
+    coverImageNegativePrompt: text("cover_image_negative_prompt"),
+    coverImageAspectRatio: text("cover_image_aspect_ratio"),
+    coverImageProviderId: text("cover_image_provider_id"),
+    coverImageModel: text("cover_image_model"),
+    coverImageUpdatedAt: text("cover_image_updated_at"),
   },
   (table) => [index("books_slug_idx").on(table.slug), index("books_draft_idx").on(table.isDraft)],
 );

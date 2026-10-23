@@ -14,9 +14,11 @@ import {
   Download,
   FileText,
   Loader2,
+  PencilLine,
   RefreshCw,
   Save,
   SkipForward,
+  Sparkles,
   Square,
   Wand2,
 } from "lucide-react";
@@ -49,6 +51,7 @@ import { StatusDot } from "@/components/status-dot";
 import { ReadingToolbar } from "@/components/reading/reading-toolbar";
 import { ReasoningBlock } from "@/components/chat/reasoning-block";
 import { IllustrationPanel } from "@/components/illustration/illustration-panel";
+import { CharacterEditorDialog } from "@/components/book/character-editor-dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { chapterStatusMeta } from "@/lib/chapter-status";
 import { usePlannerStream } from "@/lib/use-chat-stream";
@@ -61,7 +64,7 @@ import {
   useReadingPreferences,
 } from "@/lib/reading-preferences";
 import { cn, formatRelative, readingTime, wordCount } from "@/lib/utils";
-import type { Chapter, ChatMessage, Outline } from "@/lib/schemas";
+import type { Chapter, Character, ChatMessage, Outline } from "@/lib/schemas";
 
 type SaveState = "saved" | "dirty" | "saving" | "error" | "conflict";
 type SummaryState = "idle" | "running" | "saved" | "failed";
@@ -134,6 +137,11 @@ function WorkspaceSession({
   const [mobileView, setMobileView] = useState<"write" | "plan">("write");
   const [isDesktop, setIsDesktop] = useState(true);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [generatingCharacters, setGeneratingCharacters] = useState(false);
+  const [savingCharacters, setSavingCharacters] = useState(false);
+  const [characterEditorOpen, setCharacterEditorOpen] = useState(false);
+  const [charactersError, setCharactersError] = useState<string | null>(null);
+  const [deletingPageNumber, setDeletingPageNumber] = useState<number | null>(null);
   const reading = useReadingPreferences();
   const [models, setModels] = useState({
     planner: plannerModel,
@@ -600,6 +608,113 @@ function WorkspaceSession({
     }
   }
 
+  async function generateCharacters() {
+    setGeneratingCharacters(true);
+    setCharactersError(null);
+    try {
+      const response = await fetch(`/api/novels/${slug}/characters/generate`, {
+        method: "POST",
+      });
+      const payload = (await response.json()) as {
+        outline?: Outline;
+        error?: { message?: string };
+      };
+      if (!response.ok || !payload.outline) {
+        setCharactersError(
+          payload.error?.message || "The characters could not be generated.",
+        );
+        return;
+      }
+      setOutline(payload.outline);
+      toast.success("Planner extracted the character sheet.");
+    } catch {
+      setCharactersError("Could not reach the app server.");
+    } finally {
+      setGeneratingCharacters(false);
+    }
+  }
+
+  async function saveCharacters(next: Character[]) {
+    setSavingCharacters(true);
+    setCharactersError(null);
+    try {
+      const response = await fetch(`/api/novels/${slug}/characters`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ characters: next }),
+      });
+      const payload = (await response.json()) as {
+        outline?: Outline;
+        error?: { message?: string };
+      };
+      if (!response.ok || !payload.outline) {
+        setCharactersError(payload.error?.message || "The characters could not be saved.");
+        return;
+      }
+      setOutline(payload.outline);
+      setCharacterEditorOpen(false);
+      toast.success("Character sheet saved.");
+    } catch {
+      setCharactersError("Could not reach the app server.");
+    } finally {
+      setSavingCharacters(false);
+    }
+  }
+
+  async function deletePage(page: Chapter) {
+    setDeletingPageNumber(page.number);
+    try {
+      const response = await fetch(`/api/novels/${slug}/chapters/${page.number}`, {
+        method: "DELETE",
+      });
+      const payload = (await response.json()) as {
+        outline?: Outline;
+        error?: { message?: string };
+      };
+      if (!response.ok || !payload.outline) {
+        toast.error(payload.error?.message || "The page could not be deleted.");
+        return;
+      }
+      toast.success("Page deleted.");
+      if (page.number === chapterNumber) {
+        router.replace(
+          `/novels/${slug}/write?chapter=${payload.outline.currentChapter}`,
+        );
+        router.refresh();
+        return;
+      }
+      setOutline(payload.outline);
+      router.refresh();
+    } catch {
+      toast.error("Could not reach the app server.");
+    } finally {
+      setDeletingPageNumber(null);
+    }
+  }
+
+  const characterActions = (
+    <>
+      <Button
+        size="sm"
+        variant="secondary"
+        onClick={() => void generateCharacters()}
+        disabled={generatingCharacters}
+      >
+        {generatingCharacters ? <Loader2 className="animate-spin" /> : <Sparkles />}
+        Generate Characters
+      </Button>
+      <Button size="sm" variant="ghost" onClick={() => setCharacterEditorOpen(true)}>
+        <PencilLine />
+        Edit Characters
+      </Button>
+      {charactersError ? (
+        <p className="w-full rounded-md border border-[#5a2c25] bg-[#241411] p-2 text-[10.5px] leading-relaxed text-[#f2937f]">
+          {charactersError}
+        </p>
+      ) : null}
+    </>
+  );
+
   const saveLabel =
     saveState === "saving"
       ? "Saving…"
@@ -923,7 +1038,13 @@ function WorkspaceSession({
           </p>
         </div>
         <div className="mt-6 border-t border-border pt-4">
-          <OutlineView outline={outline} compact />
+          <OutlineView
+            outline={outline}
+            compact
+            characterActions={characterActions}
+            onDeletePage={(page) => void deletePage(page)}
+            deletingPageNumber={deletingPageNumber}
+          />
         </div>
       </div>
     </div>
@@ -1096,7 +1217,13 @@ function WorkspaceSession({
               </Button>
             ) : null}
           </div>
-          <OutlineView outline={outline} compact />
+          <OutlineView
+            outline={outline}
+            compact
+            characterActions={characterActions}
+            onDeletePage={(page) => void deletePage(page)}
+            deletingPageNumber={deletingPageNumber}
+          />
           <p className="mt-6 border-t border-border pt-3 text-[10.5px] leading-relaxed text-muted-foreground/70">
             The vault lives in SQLite. Every Planner and Executor call receives this context;
             the manuscript is never sent whole. Summarizer · {modelDisplayId(models.summarizer)}
@@ -1270,6 +1397,16 @@ function WorkspaceSession({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {characterEditorOpen ? (
+        <CharacterEditorDialog
+          open
+          onOpenChange={setCharacterEditorOpen}
+          initial={outline.characters}
+          saving={savingCharacters}
+          onSave={(next) => void saveCharacters(next)}
+        />
+      ) : null}
     </div>
   );
 }

@@ -116,7 +116,7 @@ export function PremiseStudio({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: manualTitle.trim() || "Untitled Novel",
+          title: manualTitle.trim() || undefined,
           premise: manualPremise.trim(),
         }),
       });
@@ -340,7 +340,7 @@ export function PremiseStudio({
                     id="manual-title"
                     value={manualTitle}
                     onChange={(event) => setManualTitle(event.target.value)}
-                    placeholder="Untitled Novel"
+                    placeholder="Leave blank to generate a title"
                     maxLength={200}
                   />
                 </div>
@@ -352,7 +352,7 @@ export function PremiseStudio({
                     onChange={(event) => setManualPremise(event.target.value)}
                     placeholder="What is the book about?"
                     className="min-h-32"
-                    maxLength={20_000}
+                    maxLength={200_000}
                   />
                 </div>
                 {publishError ? (

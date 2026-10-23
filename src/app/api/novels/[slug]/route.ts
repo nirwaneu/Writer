@@ -22,7 +22,7 @@ export async function GET(_request: Request, { params }: Params) {
 
 const patchSchema = z.object({
   title: z.string().trim().min(1).max(200).optional(),
-  premise: z.string().max(20_000).optional(),
+  premise: z.string().max(200_000).optional(),
   status: z.enum(["active", "complete"]).optional(),
 });
 

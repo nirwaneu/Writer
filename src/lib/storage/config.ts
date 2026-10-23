@@ -14,7 +14,7 @@ import {
   providers as providersTable,
 } from "@/lib/db/schema";
 import { normalizeConfig } from "@/lib/presets/defaults";
-import { DEFAULT_PRESET_ID } from "@/lib/presets/constants";
+import { CORE_ROLES, DEFAULT_PRESET_ID } from "@/lib/presets/constants";
 
 function rowToPreset(row: typeof presetsTable.$inferSelect): Preset {
   return {
@@ -34,6 +34,7 @@ function rowToProvider(row: typeof providersTable.$inferSelect): Provider {
     name: row.name,
     baseUrl: row.baseUrl,
     apiKey: row.apiKey,
+    imageModels: row.imageModelsJson ?? [],
     connection: {
       ok: row.connectionOk,
       ...(row.connectionCheckedAt ? { checkedAt: row.connectionCheckedAt } : {}),
@@ -53,7 +54,7 @@ export function createEmptyConfig(): AppConfig {
     version: 1,
     baseUrl: "",
     apiKey: "",
-    models: { planner: "", executor: "", summarizer: "" },
+    models: { planner: "", executor: "", summarizer: "", imagePrompter: "" },
     connection: { ok: false },
     presets: [],
     providers: [],
@@ -86,6 +87,7 @@ export async function getConfig(): Promise<AppConfig | null> {
       planner: row.plannerModel,
       executor: row.executorModel,
       summarizer: row.summarizerModel,
+      imagePrompter: row.imagePrompterModel,
     },
     connection: {
       ok: row.connectionOk,
@@ -125,9 +127,7 @@ export function isConfigured(config: AppConfig | null): config is AppConfig {
   return Boolean(
     config &&
       config.providers.length > 0 &&
-      config.models.planner &&
-      config.models.executor &&
-      config.models.summarizer,
+      CORE_ROLES.every((role) => Boolean(config.models[role]?.trim())),
   );
 }
 
@@ -143,6 +143,7 @@ export async function saveConfig(config: AppConfig): Promise<AppConfig> {
       plannerModel: normalized.models.planner,
       executorModel: normalized.models.executor,
       summarizerModel: normalized.models.summarizer,
+      imagePrompterModel: normalized.models.imagePrompter,
       connectionOk: normalized.connection.ok,
       connectionCheckedAt: normalized.connection.checkedAt ?? null,
       connectionLatencyMs: normalized.connection.latencyMs ?? null,
@@ -161,6 +162,7 @@ export async function saveConfig(config: AppConfig): Promise<AppConfig> {
           plannerModel: values.plannerModel,
           executorModel: values.executorModel,
           summarizerModel: values.summarizerModel,
+          imagePrompterModel: values.imagePrompterModel,
           connectionOk: values.connectionOk,
           connectionCheckedAt: values.connectionCheckedAt,
           connectionLatencyMs: values.connectionLatencyMs,
@@ -186,6 +188,7 @@ export async function saveConfig(config: AppConfig): Promise<AppConfig> {
         name: provider.name,
         baseUrl: provider.baseUrl,
         apiKey: provider.apiKey,
+        imageModelsJson: provider.imageModels,
         connectionOk: provider.connection.ok,
         connectionCheckedAt: provider.connection.checkedAt ?? null,
         connectionLatencyMs: provider.connection.latencyMs ?? null,
@@ -201,6 +204,7 @@ export async function saveConfig(config: AppConfig): Promise<AppConfig> {
             name: providerValues.name,
             baseUrl: providerValues.baseUrl,
             apiKey: providerValues.apiKey,
+            imageModelsJson: providerValues.imageModelsJson,
             connectionOk: providerValues.connectionOk,
             connectionCheckedAt: providerValues.connectionCheckedAt,
             connectionLatencyMs: providerValues.connectionLatencyMs,
@@ -258,6 +262,7 @@ export function toPublicConfig(config: AppConfig | null): PublicAppConfig | null
         baseUrl: provider.baseUrl,
         hasApiKey: Boolean(provider.apiKey),
         apiKeyHint: hint ? `••••${hint}` : null,
+        imageModels: provider.imageModels,
         connection: provider.connection,
         createdAt: provider.createdAt,
         updatedAt: provider.updatedAt,

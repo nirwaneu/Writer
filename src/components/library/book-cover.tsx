@@ -20,11 +20,13 @@ function hash(value: string): number {
 export function BookCover({
   title,
   slug,
+  imageSrc,
   className,
   size = "sm",
 }: {
   title: string;
   slug: string;
+  imageSrc?: string;
   className?: string;
   size?: "sm" | "lg";
 }) {
@@ -39,29 +41,41 @@ export function BookCover({
       )}
       style={{ backgroundColor: palette.bg, color: palette.fg }}
     >
-      <div
-        className="absolute inset-y-0 left-0 w-[9%]"
-        style={{
-          background: `linear-gradient(90deg, ${palette.spine}, ${palette.bg})`,
-          boxShadow: "inset -1px 0 0 rgba(0,0,0,0.35), inset 1px 0 0 rgba(255,255,255,0.08)",
-        }}
-      />
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.16]"
-        style={{
-          backgroundImage:
-            "repeating-linear-gradient(0deg, rgba(255,255,255,0.18) 0px, rgba(255,255,255,0.18) 1px, transparent 1px, transparent 3px)",
-        }}
-      />
+      {imageSrc ? (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={imageSrc} alt="" className="absolute inset-0 size-full object-cover" />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.08)_35%,rgba(0,0,0,0.72)_100%)]" />
+        </>
+      ) : (
+        <>
+          <div
+            className="absolute inset-y-0 left-0 w-[9%]"
+            style={{
+              background: `linear-gradient(90deg, ${palette.spine}, ${palette.bg})`,
+              boxShadow:
+                "inset -1px 0 0 rgba(0,0,0,0.35), inset 1px 0 0 rgba(255,255,255,0.08)",
+            }}
+          />
+          <div
+            className="pointer-events-none absolute inset-0 opacity-[0.16]"
+            style={{
+              backgroundImage:
+                "repeating-linear-gradient(0deg, rgba(255,255,255,0.18) 0px, rgba(255,255,255,0.18) 1px, transparent 1px, transparent 3px)",
+            }}
+          />
+        </>
+      )}
       <div
         className={cn(
           "relative flex h-full flex-col",
           size === "sm" ? "px-1.5 py-2 pl-3" : "px-4 py-5 pl-7",
+          imageSrc && "text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]",
         )}
       >
         <span
           className={cn("font-mono uppercase", size === "sm" ? "text-[5px] tracking-[0.14em]" : "text-[8px] tracking-[0.2em]")}
-          style={{ color: palette.accent }}
+          style={{ color: imageSrc ? "#f5eedf" : palette.accent }}
         >
           A novel
         </span>
@@ -75,7 +89,7 @@ export function BookCover({
         </span>
         <span
           className={cn("mt-2 block h-px", size === "sm" ? "w-4" : "w-10")}
-          style={{ backgroundColor: palette.accent, opacity: 0.7 }}
+          style={{ backgroundColor: imageSrc ? "#f5eedf" : palette.accent, opacity: 0.7 }}
         />
       </div>
       <div className="pointer-events-none absolute inset-0 rounded-[3px] ring-1 ring-inset ring-white/10" />

@@ -3,7 +3,7 @@ import http from "node:http";
 
 const PORT = Number(process.env.MOCK_AI_PORT || 8787);
 const FAIL = process.env.MOCK_AI_FAIL === "1";
-const MODELS = ["mock-planner", "mock-executor", "mock-summarizer"];
+const MODELS = ["mock-planner", "mock-executor", "mock-summarizer", "mock-image"];
 const CHUNK_DELAY = Number(process.env.MOCK_AI_DELAY_MS || 12);
 let lastRequest = null;
 
@@ -63,12 +63,33 @@ function summaryText() {
   return `Mara returns to her childhood home after eleven years and finds the garden overgrown but deliberately tended. A woman she barely remembers, last seen at a funeral, is working among the nettles and admits she did not expect Mara to come. Inside, the furniture is covered with freshly washed sheets, and a map lies on the kitchen table showing a coastline that does not exist. The paper is old, but the ink is not. When Mara touches the map, the coastline is warm. The chapter establishes the father's brickwork, the eleven-year absence, and the woman's unexplained presence. It leaves open who sent the key, why the woman stayed, and what the warm ink signifies.`;
 }
 
+function imagePromptText() {
+  return "A quiet coastal map room at dusk, an old chart on a kitchen table, warm lamplight, ink wash and painterly texture, muted teal and burnt amber palette, close three-quarter composition, soft window light, literary book illustration, no text, no watermark";
+}
+
+function charactersJson() {
+  return JSON.stringify([
+    {
+      name: "Mara",
+      role: "protagonist",
+      description: "A cartographer returning to a childhood home that remembers her.",
+    },
+    {
+      name: "Ren",
+      role: "ally",
+      description: "A woman tending the garden and withholding what she knows about the map.",
+    },
+  ]);
+}
+
 function responseFor(messages) {
   const all = messages
     .map((message) => message.content)
     .join("\n")
     .toLowerCase();
 
+  if (all.includes("return only a json array")) return charactersJson();
+  if (all.includes("expert prompt engineer")) return imagePromptText();
   if (all.includes("you name novels")) return titleText();
   if (all.includes("convert an author's brainstorming conversation into the novel's premise")) {
     return premiseText();
