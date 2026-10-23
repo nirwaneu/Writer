@@ -113,6 +113,26 @@ const server = http.createServer(async (request, response) => {
     });
   }
 
+  if (request.method === "POST" && url.pathname.endsWith("/images/generations")) {
+    const body = await readBody(request);
+    let payload = {};
+    try {
+      payload = JSON.parse(body);
+    } catch {
+      // Keep the mock tolerant of malformed bodies.
+    }
+    console.log(`   image prompt: ${String(payload.prompt ?? "").slice(0, 80)}`);
+    return sendJson(response, 200, {
+      created: Math.floor(Date.now() / 1000),
+      data: [
+        {
+          b64_json:
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2n1sAAAAASUVORK5CYII=",
+        },
+      ],
+    });
+  }
+
   if (request.method === "POST" && url.pathname.endsWith("/chat/completions")) {
     if (FAIL) {
       return sendJson(response, 500, {

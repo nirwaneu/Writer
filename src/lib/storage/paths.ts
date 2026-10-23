@@ -13,6 +13,7 @@ export const DB_PATH = path.join(DATA_DIR, "vibedraft.db");
 
 const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
 const DRAFT_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const IMAGE_FILE_PATTERN = /^[a-z0-9][a-z0-9._-]{0,120}\.(?:png|jpg|jpeg|webp)$/i;
 
 export function assertSlug(slug: string): string {
   if (!SLUG_PATTERN.test(slug)) {
@@ -62,6 +63,21 @@ export function bookConfigPath(slug: string): string {
 
 export function chaptersDir(slug: string): string {
   return path.join(novelDir(slug), "chapters");
+}
+
+export function illustrationsDir(slug: string): string {
+  return path.join(novelDir(slug), "illustrations");
+}
+
+export function assertImageFilename(filename: string): string {
+  if (!IMAGE_FILE_PATTERN.test(filename)) {
+    throw new AppError("BAD_REQUEST", "Invalid illustration filename.", { status: 400 });
+  }
+  return filename;
+}
+
+export function illustrationPath(slug: string, filename: string): string {
+  return assertInside(illustrationsDir(slug), path.join(illustrationsDir(slug), assertImageFilename(filename)));
 }
 
 export function chapterPath(slug: string, chapter: number): string {

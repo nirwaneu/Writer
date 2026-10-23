@@ -37,6 +37,11 @@ import {
   useReadingPreferences,
 } from "@/lib/reading-preferences";
 import { cn, readingTime } from "@/lib/utils";
+import {
+  chapterDisplayNumber,
+  illustrationUrl,
+  pageKindLabel,
+} from "@/lib/pages";
 import type { Outline } from "@/lib/schemas";
 
 const numberFormat = new Intl.NumberFormat("en");
@@ -60,6 +65,7 @@ export function ReaderView({
   const chapter = outline.chapters.find((item) => item.number === current) ?? outline.chapters[0];
   const index = outline.chapters.findIndex((item) => item.number === chapter?.number);
   const content = contents[chapter?.number ?? 0] ?? "";
+  const isIllustration = chapter?.kind === "illustration";
   const previous = index > 0 ? outline.chapters[index - 1] : null;
   const next = index >= 0 && index < outline.chapters.length - 1 ? outline.chapters[index + 1] : null;
 
@@ -135,7 +141,9 @@ export function ReaderView({
             >
               {outline.chapters.map((item) => (
                 <option key={item.number} value={item.number}>
-                  Chapter {item.number} — {item.title}
+                  {item.kind === "illustration"
+                    ? `Illustration · page ${item.number}`
+                    : `Chapter ${chapterDisplayNumber(item)} · ${item.title}`}
                 </option>
               ))}
             </select>
@@ -230,19 +238,50 @@ export function ReaderView({
           >
             <div className="flex items-center gap-2">
               <span className="paper-kicker font-mono text-[9px] uppercase tracking-[0.18em]">
-                Chapter {chapter.number}
+                {pageKindLabel(chapter)}
               </span>
               <span className="h-px w-6 bg-[var(--page-line)]" />
               <span className="paper-kicker font-mono text-[9px] uppercase tracking-[0.14em]">
-                {numberFormat.format(chapter.wordCount)} words · {readingTime(chapter.wordCount)}
+                {isIllustration
+                  ? "Illustration plate"
+                  : `${numberFormat.format(chapter.wordCount)} words · ${readingTime(chapter.wordCount)}`}
               </span>
             </div>
             <h1 className="paper-title mt-3 text-[2.1rem] leading-[1.08] tracking-[-0.02em] sm:text-[2.5rem]">
-              {chapter.title}
+              {isIllustration ? "Illustration" : chapter.title}
             </h1>
             <div className="paper-rule mt-2 h-px w-12" />
 
-            {content ? (
+            {isIllustration ? (
+              <div className="mt-8">
+                {chapter.image ? (
+                  <figure className="rounded-[3px] border border-[var(--page-line)] p-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={illustrationUrl(slug, chapter.image.path)}
+                      alt={chapter.image.prompt || "Book illustration"}
+                      className="mx-auto max-h-[72vh] w-auto max-w-full object-contain"
+                    />
+                    <figcaption className="paper-kicker mt-3 px-1 font-mono text-[9px] uppercase tracking-[0.14em]">
+                      Plate · {chapter.image.model}
+                    </figcaption>
+                  </figure>
+                ) : (
+                  <div className="mt-10 border-t border-[var(--page-line)] pt-6">
+                    <p className="paper-soft font-serif text-[1.1rem] italic">
+                      This illustration page has no image yet.
+                    </p>
+                    <Link
+                      href={`/novels/${slug}/write?chapter=${chapter.number}`}
+                      className="mt-3 inline-flex items-center gap-1.5 text-[12px] text-[var(--page-accent)] underline underline-offset-4"
+                    >
+                      Generate the illustration
+                      <ArrowRight className="size-3.5" />
+                    </Link>
+                  </div>
+                )}
+              </div>
+            ) : content ? (
               <div className="manuscript mt-8">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
               </div>
@@ -280,7 +319,11 @@ export function ReaderView({
             >
               <ArrowLeft />
               <span className="truncate">
-                {previous ? `Ch. ${previous.number}` : "Start"}
+                {previous
+                  ? previous.kind === "illustration"
+                    ? "Plate"
+                    : `Ch. ${chapterDisplayNumber(previous)}`
+                  : "Start"}
               </span>
             </Button>
             <Button
@@ -289,7 +332,13 @@ export function ReaderView({
               disabled={!next}
               className="max-w-[45%]"
             >
-              <span className="truncate">{next ? `Ch. ${next.number}` : "End"}</span>
+              <span className="truncate">
+                {next
+                  ? next.kind === "illustration"
+                    ? "Plate"
+                    : `Ch. ${chapterDisplayNumber(next)}`
+                  : "End"}
+              </span>
               <ArrowRight />
             </Button>
           </nav>

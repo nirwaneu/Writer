@@ -42,16 +42,19 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ChatThread } from "@/components/chat/chat-thread";
 import { BookSettingsDialog } from "@/components/workspace/book-settings-dialog";
+import { AddPageMenu } from "@/components/workspace/add-page-menu";
 import { MarkdownEditor } from "@/components/editor/markdown-editor";
 import { OutlineView } from "@/components/outline/outline-view";
 import { StatusDot } from "@/components/status-dot";
 import { ReadingToolbar } from "@/components/reading/reading-toolbar";
 import { ReasoningBlock } from "@/components/chat/reasoning-block";
+import { IllustrationPanel } from "@/components/illustration/illustration-panel";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { chapterStatusMeta } from "@/lib/chapter-status";
 import { usePlannerStream } from "@/lib/use-chat-stream";
 import { useExecutorStream } from "@/lib/streams/use-executor-stream";
 import { modelDisplayId } from "@/lib/ai/routing";
+import { chapterDisplayNumber, pageKindLabel } from "@/lib/pages";
 import {
   readingPageWidth,
   readingPaperStyle,
@@ -69,16 +72,7 @@ function isNearBottom(element: HTMLElement, threshold = 40): boolean {
 
 const numberFormat = new Intl.NumberFormat("en");
 
-export function WorkspaceView({
-  slug,
-  initialOutline,
-  chapterNumber,
-  initialContent,
-  initialChatMessages,
-  plannerModel,
-  executorModel,
-  summarizerModel,
-}: {
+type WorkspaceViewProps = {
   slug: string;
   initialOutline: Outline;
   chapterNumber: number;
@@ -87,7 +81,29 @@ export function WorkspaceView({
   plannerModel: string;
   executorModel: string;
   summarizerModel: string;
-}) {
+  imageProviders: Array<{ id: string; name: string }>;
+};
+
+export function WorkspaceView(props: WorkspaceViewProps) {
+  return (
+    <WorkspaceSession
+      key={`${props.slug}-${props.chapterNumber}`}
+      {...props}
+    />
+  );
+}
+
+function WorkspaceSession({
+  slug,
+  initialOutline,
+  chapterNumber,
+  initialContent,
+  initialChatMessages,
+  plannerModel,
+  executorModel,
+  summarizerModel,
+  imageProviders,
+}: WorkspaceViewProps) {
   const router = useRouter();
   const initialChapter =
     initialOutline.chapters.find((chapter) => chapter.number === chapterNumber) ??
@@ -148,6 +164,8 @@ export function WorkspaceView({
 
   const chapter =
     outline.chapters.find((item) => item.number === chapterNumber) ?? initialChapter;
+  const isIllustration = chapter.kind === "illustration";
+  const displayNumber = chapterDisplayNumber(chapter);
   const dirty = content !== savedContent;
   const hasContent = content.trim().length > 0;
   const planReady = planner.messages.some(
@@ -595,8 +613,12 @@ export function WorkspaceView({
               ? `Saved ${formatRelative(lastSavedAt)}`
               : "Saved";
 
-  const title =
-    chapter.title === `Chapter ${chapterNumber}` ? `Chapter ${chapterNumber}` : chapter.title;
+  const title = isIllustration
+    ? "Illustration"
+    : chapter.title === `Chapter ${chapter.number}`
+      ? `Chapter ${displayNumber}`
+      : chapter.title;
+  const pageLabel = pageKindLabel(chapter);
 
   const writePane = (
     <div className="relative flex h-full min-h-0 flex-col">
@@ -756,28 +778,39 @@ export function WorkspaceView({
           ) : null}
 
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
-            <div className="flex items-center gap-2 text-[10.5px] text-muted-foreground">
-              <StatusDot
-                tone={
-                  saveState === "error" || saveState === "conflict"
-                    ? "danger"
-                    : saveState === "dirty"
-                      ? "amber"
-                      : "success"
-                }
-                pulse={saveState === "saving" || executing}
-              />
-              {executing ? "Executor writing" : saveLabel}
-              <span className="text-muted-foreground/40">·</span>
-              <span className="tabular">{numberFormat.format(words)} words</span>
-              <span className="text-muted-foreground/40">·</span>
-              <span>{readingTime(words)}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="hidden items-center gap-2 text-[10px] text-muted-foreground/70 xl:flex">
-                <kbd className="rounded border border-border px-1 font-mono">Ctrl S</kbd> save
-                <kbd className="rounded border border-border px-1 font-mono">Ctrl ↵</kbd> execute
+            {isIllustration ? (
+              <div className="flex items-center gap-2 text-[10.5px] text-muted-foreground">
+                <StatusDot tone={chapter.image ? "success" : "muted"} />
+                {chapter.image ? "Illustration saved" : "Illustration page"}
+                <span className="text-muted-foreground/40">·</span>
+                <span>Stored locally</span>
               </div>
+            ) : (
+              <div className="flex items-center gap-2 text-[10.5px] text-muted-foreground">
+                <StatusDot
+                  tone={
+                    saveState === "error" || saveState === "conflict"
+                      ? "danger"
+                      : saveState === "dirty"
+                        ? "amber"
+                        : "success"
+                  }
+                  pulse={saveState === "saving" || executing}
+                />
+                {executing ? "Executor writing" : saveLabel}
+                <span className="text-muted-foreground/40">·</span>
+                <span className="tabular">{numberFormat.format(words)} words</span>
+                <span className="text-muted-foreground/40">·</span>
+                <span>{readingTime(words)}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              {!isIllustration ? (
+                <div className="hidden items-center gap-2 text-[10px] text-muted-foreground/70 xl:flex">
+                  <kbd className="rounded border border-border px-1 font-mono">Ctrl S</kbd> save
+                  <kbd className="rounded border border-border px-1 font-mono">Ctrl ↵</kbd> execute
+                </div>
+              ) : null}
               <ReadingToolbar
                 preferences={reading.preferences}
                 onChange={reading.update}
@@ -802,11 +835,11 @@ export function WorkspaceView({
           >
             <div className="flex flex-wrap items-center gap-2">
               <span className="paper-kicker font-mono text-[9px] uppercase tracking-[0.18em]">
-                Chapter {chapterNumber}
+                {isIllustration ? "Illustration" : `Chapter ${displayNumber}`}
               </span>
               <span className="h-px w-6 bg-[var(--page-line)]" />
               <span className="paper-kicker font-mono text-[9px] uppercase tracking-[0.14em]">
-                {meta.label}
+                {isIllustration ? "Plate" : meta.label}
               </span>
             </div>
             <h1 className="paper-title mt-2 text-[2rem] leading-[1.08] tracking-[-0.02em] sm:text-[2.35rem]">
@@ -815,20 +848,36 @@ export function WorkspaceView({
             <div className="paper-rule mt-2 h-px w-12" />
 
             <div className="mt-7">
-              <MarkdownEditor
-                value={content}
-                onChange={updateContent}
-                streaming={executing}
-                streamingText={executionText}
-                onStreamApplied={handleStreamApplied}
-                placeholder="Start writing, or plan the chapter on the right and press Execute."
-              />
+              {isIllustration ? (
+                <IllustrationPanel
+                  slug={slug}
+                  pageNumber={chapterNumber}
+                  chapter={chapter}
+                  providers={imageProviders}
+                  onSaved={setOutline}
+                />
+              ) : (
+                <MarkdownEditor
+                  value={content}
+                  onChange={updateContent}
+                  streaming={executing}
+                  streamingText={executionText}
+                  onStreamApplied={handleStreamApplied}
+                  placeholder="Start writing, or plan the chapter on the right and press Execute."
+                />
+              )}
             </div>
           </div>
 
           <div className="mt-3 flex items-center justify-between gap-3 px-1 text-[10px] text-muted-foreground/80">
-            <span>Markdown saved as chapters/chapter_{chapterNumber}.md</span>
-            <span className="hidden sm:inline">Auto-saves while you write</span>
+            <span>
+              {isIllustration
+                ? "Image saved under novels/" + slug + "/illustrations/"
+                : `Markdown saved as chapters/chapter_${chapterNumber}.md`}
+            </span>
+            <span className="hidden sm:inline">
+              {isIllustration ? "Persistent data volume" : "Auto-saves while you write"}
+            </span>
           </div>
         </div>
       </div>
@@ -843,6 +892,40 @@ export function WorkspaceView({
           <span className="size-1 animate-pulse-dot rounded-full bg-primary" />
         </button>
       ) : null}
+    </div>
+  );
+
+  const illustrationRail = (
+    <div className="flex h-full min-h-0 flex-col bg-[#0a0e13]">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2">
+        <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-[#f2c477]">
+          Illustration plate
+        </span>
+        <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+          Page {chapterNumber}
+        </span>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        <h2 className="font-serif text-[1.35rem] leading-tight tracking-[-0.01em]">
+          A visual pause.
+        </h2>
+        <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
+          This page separates chapters with an illustration. Use the generation panel on the
+          left to choose a provider, model, and aspect ratio. The image is downloaded to the
+          data volume and stored in SQLite metadata, so it survives refreshes and rebuilds.
+        </p>
+        <div className="mt-4 rounded-md border border-border bg-[#0c1218] p-3 text-[11px] leading-relaxed text-muted-foreground">
+          <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-foreground/80">
+            Storage
+          </p>
+          <p className="mt-1.5 break-all font-mono text-[10px]">
+            data/novels/{slug}/illustrations/
+          </p>
+        </div>
+        <div className="mt-6 border-t border-border pt-4">
+          <OutlineView outline={outline} compact />
+        </div>
+      </div>
     </div>
   );
 
@@ -1023,6 +1106,8 @@ export function WorkspaceView({
     </div>
   );
 
+  const activeRail = isIllustration ? illustrationRail : planRail;
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border px-3 sm:px-5">
@@ -1037,7 +1122,7 @@ export function WorkspaceView({
               {outline.title}
             </p>
             <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
-              Workspace · Chapter {chapterNumber}
+              Workspace · {pageLabel}
             </p>
           </div>
         </div>
@@ -1052,7 +1137,9 @@ export function WorkspaceView({
             >
               {outline.chapters.map((item) => (
                 <option key={item.number} value={item.number}>
-                  Ch. {item.number} — {item.title}
+                  {item.kind === "illustration"
+                    ? `Illustration · page ${item.number}`
+                    : `Ch. ${chapterDisplayNumber(item)} · ${item.title}`}
                 </option>
               ))}
             </select>
@@ -1064,6 +1151,7 @@ export function WorkspaceView({
               Read
             </Link>
           </Button>
+          <AddPageMenu slug={slug} />
           <BookSettingsDialog
             slug={slug}
             onSaved={(next) => setModels(next.models)}
@@ -1105,8 +1193,8 @@ export function WorkspaceView({
       <div className="flex shrink-0 items-center gap-0.5 border-b border-border bg-[#0b1016] p-1 lg:hidden">
         {(
           [
-            ["write", "Write"],
-            ["plan", "Plan"],
+            ["write", isIllustration ? "Illustrate" : "Write"],
+            ["plan", isIllustration ? "Info" : "Plan"],
           ] as const
         ).map(([value, label]) => (
           <button
@@ -1133,7 +1221,7 @@ export function WorkspaceView({
           </Panel>
           <PanelResizeHandle className="w-1 bg-border transition-colors hover:bg-primary/40 data-[resize-handle-state=drag]:bg-primary/70" />
           <Panel defaultSize={33} minSize={26} maxSize={48} className="min-w-0">
-            {planRail}
+            {activeRail}
           </Panel>
         </PanelGroup>
       ) : (
@@ -1142,7 +1230,7 @@ export function WorkspaceView({
             {writePane}
           </div>
           <div className={cn("min-h-0 flex-1 flex-col", mobileView === "plan" ? "flex" : "hidden")}>
-            {planRail}
+            {activeRail}
           </div>
         </div>
       )}

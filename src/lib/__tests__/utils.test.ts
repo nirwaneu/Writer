@@ -68,6 +68,7 @@ describe("isChapterReadyToContinue", () => {
     status: "summarized",
     wordCount: 100,
     summaryStale: false,
+    kind: "chapter",
     updatedAt: "2026-01-01T00:00:00.000Z",
   };
 

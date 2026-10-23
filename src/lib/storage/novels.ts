@@ -4,7 +4,9 @@ import { randomUUID } from "node:crypto";
 import { and, desc, eq, sql } from "drizzle-orm";
 import {
   type Chapter,
+  type ChapterKind,
   type Character,
+  type ImageAspectRatio,
   type NovelDetail,
   type NovelListItem,
   type Outline,
@@ -43,6 +45,7 @@ const now = () => new Date().toISOString();
 type BookRow = typeof books.$inferSelect;
 
 function chapterFromRow(row: DbChapter): Chapter {
+  const hasImage = Boolean(row.imagePath && row.imageProviderId && row.imageModel);
   return {
     number: row.number,
     title: row.title,
@@ -52,19 +55,55 @@ function chapterFromRow(row: DbChapter): Chapter {
     summaryStale: row.summaryStale,
     updatedAt: row.updatedAt,
     ...(row.summaryUpdatedAt ? { summaryUpdatedAt: row.summaryUpdatedAt } : {}),
+    kind: row.kind,
+    ...(row.chapterNumber ? { chapterNumber: row.chapterNumber } : {}),
+    ...(hasImage
+      ? {
+          image: {
+            path: row.imagePath as string,
+            prompt: row.imagePrompt ?? "",
+            negativePrompt: row.imageNegativePrompt ?? "",
+            aspectRatio: (row.imageAspectRatio as ImageAspectRatio | null) ?? "portrait",
+            providerId: row.imageProviderId as string,
+            model: row.imageModel as string,
+            updatedAt: row.imageUpdatedAt ?? row.updatedAt,
+          },
+        }
+      : {}),
   };
 }
 
-function chapterInsert(bookId: string, number: number, timestamp: string) {
+function nextChapterNumber(
+  pages: Array<{ number: number; chapterNumber: number | null; kind: ChapterKind }>,
+): number {
+  return (
+    pages
+      .filter((page) => page.kind === "chapter")
+      .reduce(
+        (max, page) => Math.max(max, page.chapterNumber ?? page.number),
+        0,
+      ) + 1
+  );
+}
+
+function chapterInsert(
+  bookId: string,
+  number: number,
+  timestamp: string,
+  kind: ChapterKind = "chapter",
+  chapterNumber = number,
+) {
   return {
     bookId,
     number,
-    title: `Chapter ${number}`,
+    title: kind === "illustration" ? "Illustration" : `Chapter ${chapterNumber}`,
     summary: "",
     status: "planned" as const,
     wordCount: 0,
     summaryStale: false,
     updatedAt: timestamp,
+    kind,
+    chapterNumber: kind === "illustration" ? null : chapterNumber,
   };
 }
 
@@ -124,6 +163,14 @@ async function outlineForRow(row: BookRow): Promise<Outline> {
     loadCharacters(row.id),
   ]);
 
+  const numbers = new Set(bookChapters.map((chapter) => chapter.number));
+  const lastChapter = [...bookChapters]
+    .reverse()
+    .find((chapter) => chapter.kind === "chapter");
+  const currentChapter = numbers.has(row.currentChapter)
+    ? row.currentChapter
+    : lastChapter?.number ?? bookChapters[bookChapters.length - 1]?.number ?? 1;
+
   return {
     version: 1,
     id: row.id,
@@ -132,7 +179,7 @@ async function outlineForRow(row: BookRow): Promise<Outline> {
     status: row.status,
     characters: bookCharacters,
     chapters: bookChapters,
-    currentChapter: row.currentChapter,
+    currentChapter,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -173,7 +220,7 @@ export async function listNovels(): Promise<NovelListItem[]> {
       currentChapter: books.currentChapter,
       createdAt: books.createdAt,
       updatedAt: books.updatedAt,
-      chapterCount: sql<number>`(select count(*) from chapters where chapters.book_id = ${books.id})`,
+      chapterCount: sql<number>`(select count(*) from chapters where chapters.book_id = ${books.id} and chapters.kind = 'chapter')`,
       wordCount: sql<number>`(select coalesce(sum(word_count), 0) from chapters where chapters.book_id = ${books.id})`,
     })
     .from(books)
@@ -193,7 +240,7 @@ export async function getNovelDetail(slug: string): Promise<NovelDetail> {
   return {
     slug,
     outline,
-    chapterCount: outline.chapters.length,
+    chapterCount: outline.chapters.filter((chapter) => chapter.kind === "chapter").length,
     wordCount: outline.chapters.reduce((total, chapter) => total + chapter.wordCount, 0),
   };
 }
@@ -253,7 +300,7 @@ export async function createDraft(
         configUpdatedAt: config.updatedAt,
       })
       .run();
-    tx.insert(chaptersTable).values(chapterInsert(id, 1, timestamp)).run();
+    tx.insert(chaptersTable).values(chapterInsert(id, 1, timestamp, "chapter", 1)).run();
     tx.insert(chatsTable)
       .values({
         bookId: id,
@@ -308,7 +355,7 @@ export async function publishDraft(
       .where(eq(chaptersTable.bookId, id))
       .all();
     if (!existingChapters.length) {
-      db.insert(chaptersTable).values(chapterInsert(id, 1, timestamp)).run();
+      db.insert(chaptersTable).values(chapterInsert(id, 1, timestamp, "chapter", 1)).run();
     }
     db.insert(chatsTable)
       .values({
@@ -387,8 +434,21 @@ export async function ensureChapter(slug: string, number: number): Promise<Outli
 
     if (!existing) {
       const timestamp = now();
+      const chapterNumber = nextChapterNumber(
+        db
+          .select({
+            number: chaptersTable.number,
+            chapterNumber: chaptersTable.chapterNumber,
+            kind: chaptersTable.kind,
+          })
+          .from(chaptersTable)
+          .where(eq(chaptersTable.bookId, row.id))
+          .all(),
+      );
       db.transaction((tx) => {
-        tx.insert(chaptersTable).values(chapterInsert(row.id, number, timestamp)).run();
+        tx.insert(chaptersTable)
+          .values(chapterInsert(row.id, number, timestamp, "chapter", chapterNumber))
+          .run();
         tx.insert(chatsTable)
           .values({
             bookId: row.id,
@@ -476,14 +536,11 @@ export async function saveChapterContent(
       : "planned";
     const summaryStale = hasContent && summaryExists ? true : existing.summaryStale;
     const chapter: Chapter = {
-      number: existing.number,
-      title: existing.title,
-      summary: existing.summary,
+      ...chapterFromRow(existing),
       status,
       wordCount: wordCount(content),
       summaryStale,
       updatedAt: timestamp,
-      ...(existing.summaryUpdatedAt ? { summaryUpdatedAt: existing.summaryUpdatedAt } : {}),
     };
 
     db.transaction((tx) => {
@@ -599,11 +656,29 @@ export async function advanceChapter(slug: string, from: number): Promise<Outlin
       );
     }
 
-    const nextNumber = from + 1;
+    const pages = db
+      .select({
+        number: chaptersTable.number,
+        chapterNumber: chaptersTable.chapterNumber,
+        kind: chaptersTable.kind,
+      })
+      .from(chaptersTable)
+      .where(eq(chaptersTable.bookId, row.id))
+      .all();
+    const nextNumber = Math.max(from, ...pages.map((page) => page.number)) + 1;
+    const logicalChapterNumber = nextChapterNumber(pages);
     const timestamp = now();
     db.transaction((tx) => {
       tx.insert(chaptersTable)
-        .values(chapterInsert(row.id, nextNumber, timestamp))
+        .values(
+          chapterInsert(
+            row.id,
+            nextNumber,
+            timestamp,
+            "chapter",
+            logicalChapterNumber,
+          ),
+        )
         .onConflictDoNothing()
         .run();
       tx.insert(chatsTable)
@@ -617,7 +692,7 @@ export async function advanceChapter(slug: string, from: number): Promise<Outlin
         .run();
       tx.update(books)
         .set({
-          currentChapter: Math.max(row.currentChapter, nextNumber),
+          currentChapter: nextNumber,
           status: "active",
           updatedAt: timestamp,
         })
@@ -627,6 +702,115 @@ export async function advanceChapter(slug: string, from: number): Promise<Outlin
 
     return getNovel(slug);
   });
+}
+
+export async function addPage(
+  slug: string,
+  kind: ChapterKind,
+): Promise<{ outline: Outline; pageNumber: number }> {
+  const row = await getBookRowBySlug(slug);
+  return withLock(`book:${row.id}`, async () => {
+    const db = await getDb();
+    const pages = db
+      .select({
+        number: chaptersTable.number,
+        chapterNumber: chaptersTable.chapterNumber,
+        kind: chaptersTable.kind,
+      })
+      .from(chaptersTable)
+      .where(eq(chaptersTable.bookId, row.id))
+      .all();
+    const pageNumber = Math.max(0, ...pages.map((page) => page.number)) + 1;
+    const chapterNumber = nextChapterNumber(pages);
+    const timestamp = now();
+
+    db.transaction((tx) => {
+      tx.insert(chaptersTable)
+        .values(
+          chapterInsert(row.id, pageNumber, timestamp, kind, chapterNumber),
+        )
+        .run();
+      if (kind === "chapter") {
+        tx.insert(chatsTable)
+          .values({
+            bookId: row.id,
+            scope: `chapter_${pageNumber}`,
+            messagesJson: [],
+            updatedAt: timestamp,
+          })
+          .onConflictDoNothing()
+          .run();
+      }
+      tx.update(books)
+        .set({
+          currentChapter: pageNumber,
+          status: "active",
+          updatedAt: timestamp,
+        })
+        .where(eq(books.id, row.id))
+        .run();
+    });
+
+    return { outline: await getNovel(slug), pageNumber };
+  });
+}
+
+export async function saveIllustrationResult(
+  slug: string,
+  number: number,
+  input: {
+    path: string;
+    prompt: string;
+    negativePrompt: string;
+    aspectRatio: ImageAspectRatio;
+    providerId: string;
+    model: string;
+  },
+): Promise<Outline> {
+  assertChapterNumber(number);
+  const row = await getBookRowBySlug(slug);
+  const db = await getDb();
+  const existing = db
+    .select()
+    .from(chaptersTable)
+    .where(
+      and(
+        eq(chaptersTable.bookId, row.id),
+        eq(chaptersTable.number, number),
+      ),
+    )
+    .get();
+  if (!existing) throw new NotFoundError(`Page ${number} does not exist.`);
+  if (existing.kind !== "illustration") {
+    throw new AppError("BAD_REQUEST", "Only illustration pages can hold images.", {
+      status: 400,
+    });
+  }
+
+  const timestamp = now();
+  db.transaction((tx) => {
+    tx.update(chaptersTable)
+      .set({
+        title: existing.title,
+        imagePath: input.path,
+        imagePrompt: input.prompt,
+        imageNegativePrompt: input.negativePrompt,
+        imageAspectRatio: input.aspectRatio,
+        imageProviderId: input.providerId,
+        imageModel: input.model,
+        imageUpdatedAt: timestamp,
+        updatedAt: timestamp,
+      })
+      .where(
+        and(
+          eq(chaptersTable.bookId, row.id),
+          eq(chaptersTable.number, number),
+        ),
+      )
+      .run();
+    tx.update(books).set({ updatedAt: timestamp }).where(eq(books.id, row.id)).run();
+  });
+  return getNovel(slug);
 }
 
 export async function getChapterHistory(slug: string, number: number) {

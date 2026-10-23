@@ -3,6 +3,7 @@ import { AppError } from "@/lib/errors";
 export type ResolvedEndpoints = {
   chat: string;
   models: string;
+  images: string;
 };
 
 export function resolveEndpoints(input: string): ResolvedEndpoints {
@@ -27,6 +28,7 @@ export function resolveEndpoints(input: string): ResolvedEndpoints {
     return {
       chat: build(url, `${base}/chat/completions`),
       models: build(url, `${base}/models`),
+      images: build(url, `${base}/images/generations`),
     };
   }
 
@@ -35,6 +37,7 @@ export function resolveEndpoints(input: string): ResolvedEndpoints {
     return {
       chat: build(url, `${base}/chat/completions`),
       models: build(url, `${base}/models`),
+      images: build(url, `${base}/images/generations`),
     };
   }
 
@@ -45,6 +48,7 @@ export function resolveEndpoints(input: string): ResolvedEndpoints {
   return {
     chat: build(url, `${pathname}/chat/completions`),
     models: build(url, `${pathname}/models`),
+    images: build(url, `${pathname}/images/generations`),
   };
 }
 

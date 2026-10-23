@@ -7,6 +7,31 @@ import { migrateLegacyFiles, migrateLegacyProvider } from "@/lib/db/migrate";
 
 export type AppDb = BetterSQLite3Database<typeof schema>;
 
+const CHAPTER_COLUMNS: Array<[string, string]> = [
+  ["kind", "TEXT NOT NULL DEFAULT 'chapter'"],
+  ["chapter_number", "INTEGER"],
+  ["image_path", "TEXT"],
+  ["image_prompt", "TEXT"],
+  ["image_negative_prompt", "TEXT"],
+  ["image_aspect_ratio", "TEXT"],
+  ["image_provider_id", "TEXT"],
+  ["image_model", "TEXT"],
+  ["image_updated_at", "TEXT"],
+];
+
+function migrateChapterColumns(database: Database.Database): void {
+  const existing = new Set(
+    (database.prepare("PRAGMA table_info(chapters)").all() as Array<{ name: string }>).map(
+      (column) => column.name,
+    ),
+  );
+  for (const [name, definition] of CHAPTER_COLUMNS) {
+    if (!existing.has(name)) {
+      database.exec(`ALTER TABLE chapters ADD COLUMN ${name} ${definition}`);
+    }
+  }
+}
+
 const DDL = `
 CREATE TABLE IF NOT EXISTS global_settings (
   id INTEGER PRIMARY KEY,
@@ -79,6 +104,15 @@ CREATE TABLE IF NOT EXISTS chapters (
   summary_stale INTEGER NOT NULL DEFAULT 0,
   updated_at TEXT NOT NULL,
   summary_updated_at TEXT,
+  kind TEXT NOT NULL DEFAULT 'chapter',
+  chapter_number INTEGER,
+  image_path TEXT,
+  image_prompt TEXT,
+  image_negative_prompt TEXT,
+  image_aspect_ratio TEXT,
+  image_provider_id TEXT,
+  image_model TEXT,
+  image_updated_at TEXT,
   PRIMARY KEY (book_id, number)
 );
 CREATE INDEX IF NOT EXISTS chapters_book_idx ON chapters (book_id);
@@ -119,6 +153,7 @@ async function initialize(): Promise<AppDb> {
   database.pragma("foreign_keys = ON");
   database.pragma("busy_timeout = 5000");
   database.exec(DDL);
+  migrateChapterColumns(database);
 
   const db = drizzle(database, { schema });
   await migrateLegacyFiles(db);

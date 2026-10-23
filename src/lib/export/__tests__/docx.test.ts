@@ -17,6 +17,7 @@ const outline: Outline = {
       status: "drafted",
       wordCount: 10,
       summaryStale: false,
+      kind: "chapter",
       updatedAt: "2026-01-01T00:00:00.000Z",
     },
   ],

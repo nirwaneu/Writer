@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { chapterDisplayNumber } from "@/lib/pages";
 import type { Outline } from "@/lib/schemas";
 
 export function OutlineView({
@@ -68,38 +69,44 @@ export function OutlineView({
             Chapter summaries
           </h3>
           <span className="font-mono text-[10px] text-muted-foreground">
-            {outline.chapters.filter((chapter) => chapter.summary).length}/{outline.chapters.length}
+            {outline.chapters.filter((chapter) => chapter.summary).length}/
+            {outline.chapters.filter((chapter) => chapter.kind === "chapter").length}
           </span>
         </div>
         <ol className="mt-2 space-y-3">
-          {outline.chapters.map((chapter) => (
-            <li key={chapter.number} className="border-l border-border pl-3">
-              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-primary/80">
-                  Ch. {chapter.number}
-                </span>
-                <span className="text-[12.5px] font-medium text-foreground/90">
-                  {chapter.title}
-                </span>
-                {chapter.summaryStale ? (
-                  <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#f2937f]">
-                    stale
+          {outline.chapters.map((chapter) => {
+            const illustration = chapter.kind === "illustration";
+            return (
+              <li key={chapter.number} className="border-l border-border pl-3">
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                  <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-primary/80">
+                    {illustration ? "Plate" : `Ch. ${chapterDisplayNumber(chapter)}`}
                   </span>
-                ) : null}
-              </div>
-              <p
-                className={cn(
-                  "mt-1 whitespace-pre-wrap leading-relaxed text-muted-foreground",
-                  compact ? "text-[11px]" : "text-[12px]",
-                )}
-              >
-                {chapter.summary ||
-                  (chapter.status === "summary_skipped"
-                    ? "Summary skipped for this chapter."
-                    : "No summary yet.")}
-              </p>
-            </li>
-          ))}
+                  <span className="text-[12.5px] font-medium text-foreground/90">
+                    {illustration ? "Illustration page" : chapter.title}
+                  </span>
+                  {chapter.summaryStale ? (
+                    <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#f2937f]">
+                      stale
+                    </span>
+                  ) : null}
+                </div>
+                <p
+                  className={cn(
+                    "mt-1 whitespace-pre-wrap leading-relaxed text-muted-foreground",
+                    compact ? "text-[11px]" : "text-[12px]",
+                  )}
+                >
+                  {illustration
+                    ? chapter.image?.prompt || "No illustration generated yet."
+                    : chapter.summary ||
+                      (chapter.status === "summary_skipped"
+                        ? "Summary skipped for this chapter."
+                        : "No summary yet.")}
+                </p>
+              </li>
+            );
+          })}
         </ol>
       </section>
     </div>

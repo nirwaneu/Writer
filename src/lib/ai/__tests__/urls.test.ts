@@ -2,10 +2,11 @@ import { describe, expect, it } from "vitest";
 import { resolveEndpoints, normalizeBaseUrl } from "@/lib/ai/urls";
 
 describe("resolveEndpoints", () => {
-  it("appends chat and models to a /v1 base", () => {
+  it("appends chat, models, and images to a /v1 base", () => {
     expect(resolveEndpoints("https://openrouter.ai/api/v1")).toEqual({
       chat: "https://openrouter.ai/api/v1/chat/completions",
       models: "https://openrouter.ai/api/v1/models",
+      images: "https://openrouter.ai/api/v1/images/generations",
     });
   });
 
@@ -13,6 +14,7 @@ describe("resolveEndpoints", () => {
     expect(resolveEndpoints("http://localhost:1234/v1/chat/completions")).toEqual({
       chat: "http://localhost:1234/v1/chat/completions",
       models: "http://localhost:1234/v1/models",
+      images: "http://localhost:1234/v1/images/generations",
     });
   });
 
@@ -20,6 +22,7 @@ describe("resolveEndpoints", () => {
     expect(resolveEndpoints("https://example.com/v1/completions")).toEqual({
       chat: "https://example.com/v1/chat/completions",
       models: "https://example.com/v1/models",
+      images: "https://example.com/v1/images/generations",
     });
   });
 
@@ -27,6 +30,7 @@ describe("resolveEndpoints", () => {
     expect(resolveEndpoints("http://localhost:11434")).toEqual({
       chat: "http://localhost:11434/v1/chat/completions",
       models: "http://localhost:11434/v1/models",
+      images: "http://localhost:11434/v1/images/generations",
     });
   });
 
@@ -34,6 +38,7 @@ describe("resolveEndpoints", () => {
     expect(resolveEndpoints("https://example.com/openai/")).toEqual({
       chat: "https://example.com/openai/chat/completions",
       models: "https://example.com/openai/models",
+      images: "https://example.com/openai/images/generations",
     });
   });
 

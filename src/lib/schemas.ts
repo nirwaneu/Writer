@@ -9,6 +9,19 @@ export const chapterStatusSchema = z.enum([
   "summary_skipped",
 ]);
 
+export const pageKindSchema = z.enum(["chapter", "illustration"]);
+export const imageAspectRatioSchema = z.enum(["portrait", "square", "landscape"]);
+
+export const illustrationSchema = z.object({
+  path: z.string().min(1).max(200),
+  prompt: z.string().max(4_000).default(""),
+  negativePrompt: z.string().max(2_000).default(""),
+  aspectRatio: imageAspectRatioSchema.default("portrait"),
+  providerId: z.string().min(1).max(100),
+  model: z.string().min(1).max(200),
+  updatedAt: z.string().min(1),
+});
+
 export const chapterSchema = z.object({
   number: z.number().int().positive(),
   title: z.string().min(1).max(200),
@@ -18,6 +31,9 @@ export const chapterSchema = z.object({
   summaryStale: z.boolean().default(false),
   updatedAt: z.string().min(1),
   summaryUpdatedAt: z.string().optional(),
+  kind: pageKindSchema.default("chapter"),
+  chapterNumber: z.number().int().positive().optional(),
+  image: illustrationSchema.optional(),
 });
 
 export const characterSchema = z.object({
@@ -171,6 +187,9 @@ export const appConfigSchema = z.object({
 });
 
 export type Chapter = z.infer<typeof chapterSchema>;
+export type ChapterKind = z.infer<typeof pageKindSchema>;
+export type ImageAspectRatio = z.infer<typeof imageAspectRatioSchema>;
+export type Illustration = z.infer<typeof illustrationSchema>;
 export type Character = z.infer<typeof characterSchema>;
 export type Outline = z.infer<typeof outlineSchema>;
 export type ChatMessage = z.infer<typeof chatMessageSchema>;

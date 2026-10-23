@@ -50,7 +50,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { BookCover } from "@/components/library/book-cover";
 import { RelativeTime } from "@/components/relative-time";
+import { AddPageMenu } from "@/components/workspace/add-page-menu";
 import { chapterStatusMeta } from "@/lib/chapter-status";
+import { chapterDisplayNumber } from "@/lib/pages";
 import { formatDate } from "@/lib/utils";
 import type { Outline } from "@/lib/schemas";
 
@@ -251,17 +253,21 @@ export function BookDetailView({
 
         <div className="mt-12 grid gap-10 lg:grid-cols-[minmax(0,1fr)_320px]">
           <section aria-labelledby="chapters-heading">
-            <div className="flex items-baseline justify-between gap-3 border-b border-border pb-3">
-              <h2 id="chapters-heading" className="text-[14px] font-semibold">
-                Chapters
-              </h2>
-              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                {chapterCount} {chapterCount === 1 ? "chapter" : "chapters"}
-              </span>
+            <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
+              <div className="flex items-baseline gap-3">
+                <h2 id="chapters-heading" className="text-[14px] font-semibold">
+                  Chapters
+                </h2>
+                <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                  {chapterCount} {chapterCount === 1 ? "chapter" : "chapters"}
+                </span>
+              </div>
+              <AddPageMenu slug={slug} />
             </div>
             <ol className="divide-y divide-border">
               {outline.chapters.map((chapter) => {
                 const meta = chapterStatusMeta(chapter.status, chapter.summaryStale);
+                const illustration = chapter.kind === "illustration";
                 return (
                   <li key={chapter.number}>
                     <Link
@@ -269,36 +275,36 @@ export function BookDetailView({
                       className="group grid grid-cols-[38px_minmax(0,1fr)] gap-4 py-4 transition-colors hover:bg-white/[0.018] sm:grid-cols-[38px_minmax(0,1fr)_auto]"
                     >
                       <span className="font-mono text-[11px] tabular text-muted-foreground">
-                        {String(chapter.number).padStart(2, "0")}
+                        {illustration
+                          ? "IMG"
+                          : String(chapterDisplayNumber(chapter)).padStart(2, "0")}
                       </span>
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-[13px] font-medium text-foreground group-hover:text-[#f4c477]">
-                            {chapter.title}
+                            {illustration ? "Illustration page" : chapter.title}
                           </h3>
-                          <Badge
-                            variant={
-                              meta.tone === "success"
-                                ? "success"
-                                : meta.tone === "danger"
-                                  ? "danger"
-                                  : meta.tone === "amber"
-                                    ? "amber"
-                                    : "default"
-                            }
-                          >
-                            {meta.label}
+                          <Badge variant={illustration ? "amber" : meta.tone === "success" ? "success" : meta.tone === "danger" ? "danger" : meta.tone === "amber" ? "amber" : "default"}>
+                            {illustration
+                              ? chapter.image
+                                ? "Image ready"
+                                : "Needs image"
+                              : meta.label}
                           </Badge>
                         </div>
                         <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-muted-foreground">
-                          {chapter.summary ||
-                            (chapter.status === "planned"
-                              ? "Not drafted yet."
-                              : "No summary in the vault yet.")}
+                          {illustration
+                            ? chapter.image?.prompt || "Add a generated plate between chapters."
+                            : chapter.summary ||
+                              (chapter.status === "planned"
+                                ? "Not drafted yet."
+                                : "No summary in the vault yet.")}
                         </p>
                       </div>
                       <div className="col-span-2 flex items-center justify-between gap-5 pl-[54px] text-[11px] text-muted-foreground sm:col-span-1 sm:justify-end sm:pl-0">
-                        <span className="tabular">{numberFormat.format(chapter.wordCount)} words</span>
+                        <span className="tabular">
+                          {illustration ? "Plate" : `${numberFormat.format(chapter.wordCount)} words`}
+                        </span>
                         <ArrowRight className="size-4 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
                       </div>
                     </Link>

@@ -1,5 +1,6 @@
 import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import type {
+  ChapterKind,
   ChapterStatus,
   ChatMessage,
   Outline,
@@ -86,6 +87,15 @@ export const chapters = sqliteTable(
     summaryStale: integer("summary_stale", { mode: "boolean" }).notNull().default(false),
     updatedAt: text("updated_at").notNull(),
     summaryUpdatedAt: text("summary_updated_at"),
+    kind: text("kind").$type<ChapterKind>().notNull().default("chapter"),
+    chapterNumber: integer("chapter_number"),
+    imagePath: text("image_path"),
+    imagePrompt: text("image_prompt"),
+    imageNegativePrompt: text("image_negative_prompt"),
+    imageAspectRatio: text("image_aspect_ratio"),
+    imageProviderId: text("image_provider_id"),
+    imageModel: text("image_model"),
+    imageUpdatedAt: text("image_updated_at"),
   },
   (table) => [
     primaryKey({ columns: [table.bookId, table.number] }),

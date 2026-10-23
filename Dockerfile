@@ -23,7 +23,7 @@ ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     DATA_DIR=/data
 
-RUN apk add --no-cache libstdc++ libc6-compat \
+RUN apk add --no-cache libstdc++ libc6-compat su-exec \
     && addgroup -S -g 1001 nodejs \
     && adduser -S -u 1001 -G nodejs nextjs \
     && mkdir -p /data \
@@ -32,9 +32,12 @@ RUN apk add --no-cache libstdc++ libc6-compat \
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-USER nextjs
 EXPOSE 3000
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD wget -qO- http://127.0.0.1:3000/login >/dev/null 2>&1 || exit 1

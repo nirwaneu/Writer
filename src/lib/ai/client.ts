@@ -176,6 +176,170 @@ export async function listModels(
   return { models: Array.from(new Set(ids)).sort(), latencyMs: Date.now() - started };
 }
 
+export type ImageGenerationResult = {
+  bytes: Buffer;
+  mime: string;
+};
+
+const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
+
+function imageMimeFromBytes(bytes: Buffer): string | null {
+  if (
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47
+  ) {
+    return "image/png";
+  }
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return "image/jpeg";
+  }
+  if (
+    bytes.length >= 12 &&
+    bytes.toString("ascii", 0, 4) === "RIFF" &&
+    bytes.toString("ascii", 8, 12) === "WEBP"
+  ) {
+    return "image/webp";
+  }
+  return null;
+}
+
+function normalizeImageMime(value: string | null | undefined, bytes: Buffer): string {
+  const mime = value?.split(";")[0]?.trim().toLowerCase() ?? "";
+  if (mime === "image/png" || mime === "image/jpeg" || mime === "image/webp") {
+    return mime;
+  }
+  return imageMimeFromBytes(bytes) ?? "image/png";
+}
+
+export async function generateImage(options: {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  prompt: string;
+  negativePrompt?: string;
+  size: string;
+  signal?: AbortSignal;
+  timeoutMs?: number;
+}): Promise<ImageGenerationResult> {
+  const {
+    baseUrl,
+    apiKey,
+    model,
+    prompt,
+    negativePrompt,
+    size,
+    signal,
+    timeoutMs = 180_000,
+  } = options;
+  const { images } = resolveEndpoints(baseUrl);
+
+  let response: Response;
+  try {
+    response = await fetch(images, {
+      method: "POST",
+      headers: authHeaders(apiKey),
+      body: JSON.stringify({
+        model,
+        prompt,
+        n: 1,
+        size,
+        ...(negativePrompt?.trim() ? { negative_prompt: negativePrompt.trim() } : {}),
+      }),
+      signal: composeSignal(signal, timeoutMs),
+      cache: "no-store",
+    });
+  } catch (error) {
+    throw networkError(error);
+  }
+
+  if (!response.ok) {
+    throw mapHttpError(response.status, await readErrorBody(response), model);
+  }
+
+  const body = (await response.json().catch(() => null)) as
+    | {
+        data?: Array<{
+          b64_json?: string;
+          url?: string;
+          image_url?: string;
+        }>;
+        error?: { message?: string };
+      }
+    | null;
+  const item = body?.data?.[0];
+  if (!item) {
+    throw new AppError(
+      "AI_BAD_RESPONSE",
+      body?.error?.message || "The image provider returned no image.",
+      { status: 502, retryable: true },
+    );
+  }
+
+  let bytes: Buffer;
+  let declaredMime: string | null = null;
+
+  if (typeof item.b64_json === "string" && item.b64_json.trim()) {
+    let encoded = item.b64_json.trim();
+    const dataUrl = encoded.match(/^data:([^;,]+);base64,(.*)$/s);
+    if (dataUrl) {
+      declaredMime = dataUrl[1];
+      encoded = dataUrl[2];
+    }
+    bytes = Buffer.from(encoded, "base64");
+  } else {
+    const remote = item.url || item.image_url;
+    if (!remote) {
+      throw new AppError(
+        "AI_BAD_RESPONSE",
+        "The image provider returned no usable image data.",
+        { status: 502, retryable: true },
+      );
+    }
+
+    let imageResponse: Response;
+    try {
+      imageResponse = await fetch(remote, {
+        signal: composeSignal(signal, timeoutMs),
+        cache: "no-store",
+      });
+    } catch (error) {
+      throw networkError(error);
+    }
+    if (!imageResponse.ok) {
+      throw new AppError(
+        "AI_UNAVAILABLE",
+        `The generated image could not be downloaded (${imageResponse.status}).`,
+        { status: 502, retryable: true },
+      );
+    }
+    declaredMime = imageResponse.headers.get("content-type");
+    const declaredLength = Number(imageResponse.headers.get("content-length") ?? 0);
+    if (declaredLength > MAX_IMAGE_BYTES) {
+      throw new AppError("AI_BAD_RESPONSE", "The generated image is too large.", {
+        status: 502,
+      });
+    }
+    bytes = Buffer.from(await imageResponse.arrayBuffer());
+  }
+
+  if (!bytes.length) {
+    throw new AppError("AI_BAD_RESPONSE", "The generated image was empty.", {
+      status: 502,
+      retryable: true,
+    });
+  }
+  if (bytes.length > MAX_IMAGE_BYTES) {
+    throw new AppError("AI_BAD_RESPONSE", "The generated image is too large.", {
+      status: 502,
+    });
+  }
+
+  return { bytes, mime: normalizeImageMime(declaredMime, bytes) };
+}
+
 export async function testConnection(
   baseUrl: string,
   apiKey: string,
