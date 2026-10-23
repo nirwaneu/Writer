@@ -1,0 +1,43 @@
+# VibeDraft is one Next.js service. It has no separate application backend:
+# AI provider calls are made server-side by the same container.
+# The optional mock AI server (`npm run mock-ai`, port 8787) is development-only
+# and is intentionally not part of this production stack.
+
+name: vibedraft
+
+services:
+  vibedraft:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: vibedraft:latest
+    container_name: vibedraft
+    restart: unless-stopped
+    init: true
+    ports:
+      - "3008:3000"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      DATA_DIR: /data
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+      HOST: 0.0.0.0
+    volumes:
+      # Single persistent root: /data/vibedraft.db and /data/novels/*.md
+      # survive image rebuilds. Keep this bind mount on the host.
+      - ./data:/data
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/login"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

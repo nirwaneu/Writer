@@ -1,0 +1,61 @@
+{
+  "name": "Night desk",
+  "version": 1,
+  "mode": "operate",
+  "colors": {
+    "background": "#0b0f14",
+    "foreground": "#e9e2d4",
+    "card": "#11171f",
+    "popover": "#151d27",
+    "secondary": "#18212b",
+    "muted": "#18212b",
+    "mutedForeground": "#93a0ad",
+    "border": "#26313d",
+    "input": "#2c3946",
+    "primary": "#f2a93b",
+    "primaryForeground": "#1a1206",
+    "destructive": "#f2705b",
+    "success": "#86bd93",
+    "warning": "#f2c14e",
+    "paper": "#f5eedf",
+    "ink": "#1a1712",
+    "paperMuted": "#6f6759",
+    "paperLine": "#ded3bf"
+  },
+  "typography": {
+    "ui": "\"Segoe UI\", -apple-system, BlinkMacSystemFont, \"Helvetica Neue\", Arial, sans-serif",
+    "prose": "\"Iowan Old Style\", \"Palatino Linotype\", Palatino, \"Book Antiqua\", Georgia, serif",
+    "mono": "\"Cascadia Code\", \"SFMono-Regular\", Consolas, \"Liberation Mono\", monospace",
+    "manuscriptSize": "19px",
+    "manuscriptLineHeight": 1.78,
+    "manuscriptMeasure": "68ch"
+  },
+  "spacing": {
+    "base": "4px",
+    "shellHeight": "56px",
+    "pageMax": "820px",
+    "railMin": "26%",
+    "railMax": "48%"
+  },
+  "radii": {
+    "control": "6px",
+    "paper": "4px",
+    "pill": "999px"
+  },
+  "shadows": {
+    "paper": "0 1px 0 rgba(255,255,255,0.55) inset, 0 24px 60px -24px rgba(0,0,0,0.75), 0 2px 8px rgba(0,0,0,0.35)",
+    "dialog": "0 24px 80px -24px rgba(0,0,0,0.9)"
+  },
+  "motion": {
+    "duration": "150-250ms",
+    "easing": "cubic-bezier(0.22, 1, 0.36, 1)",
+    "reducedMotion": true
+  },
+  "assets": [
+    {
+      "path": "public/favicon.svg",
+      "type": "svg",
+      "provenance": "authored for this project"
+    }
+  ]
+}

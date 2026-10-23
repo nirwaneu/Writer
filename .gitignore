@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Next.js / build output
+.next/
+out/
+build/
+next-env.d.ts
+*.tsbuildinfo
+
+# Environment files (keep the deployment template tracked)
+.env
+.env.*
+!.env.example
+
+# Runtime data: SQLite and Markdown manuscripts
+data/
+novels/
+drafts/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.journal
+app_config.json
+
+# Logs and test artifacts
+*.log
+coverage/
+test-results/
+playwright-report/
+.playwright/
+
+# Design review captures and local tooling
+.impeccable/review
+.impeccable/mocks
+.cursor/
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
