@@ -2,15 +2,38 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
+  Archive,
+  ArchiveRestore,
   ArrowRight,
   BookOpen,
+  MoreHorizontal,
   Plus,
   Search,
+  Trash2,
   X,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { BookCover } from "@/components/library/book-cover";
 import { RelativeTime } from "@/components/relative-time";
 import { NewBookDialog } from "@/components/books/new-book-dialog";
@@ -23,12 +46,14 @@ const numberFormat = new Intl.NumberFormat("en");
 
 export function LibraryView({
   novels,
+  archivedNovels,
   presets,
   defaultPresetId,
   globalModels,
   providers,
 }: {
   novels: NovelListItem[];
+  archivedNovels: NovelListItem[];
   presets: Preset[];
   defaultPresetId: string;
   globalModels: ModelRoles | null;
@@ -36,6 +61,7 @@ export function LibraryView({
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [view, setView] = useState<"active" | "archived">("active");
   const [newOpen, setNewOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -50,11 +76,12 @@ export function LibraryView({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const totalWords = novels.reduce((total, novel) => total + novel.wordCount, 0);
-  const featured = novels[0] ?? null;
+  const visibleNovels = view === "archived" ? archivedNovels : novels;
+  const totalWords = visibleNovels.reduce((total, novel) => total + novel.wordCount, 0);
+  const featured = view === "active" ? (novels[0] ?? null) : null;
 
   const needle = query.trim().toLowerCase();
-  const filtered = novels.filter((novel) => {
+  const filtered = visibleNovels.filter((novel) => {
     const matchesQuery =
       !needle ||
       novel.title.toLowerCase().includes(needle) ||
@@ -67,21 +94,53 @@ export function LibraryView({
   });
 
   const searching = Boolean(query.trim()) || filter !== "all";
-  const showList = novels.length > 1 || searching;
+  const showList = view === "archived" || visibleNovels.length > 1 || searching;
+  const emptyLibrary = view === "active" && novels.length === 0;
+  const emptyArchive = view === "archived" && archivedNovels.length === 0;
 
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto w-full max-w-6xl px-5 pb-16 pt-8 sm:px-8 lg:pt-10">
         <header className="flex flex-col gap-5 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="font-serif text-[2.4rem] leading-none tracking-[-0.03em]">The shelf.</h1>
+            <h1 className="font-serif text-[2.4rem] leading-none tracking-[-0.03em]">
+              {view === "archived" ? "The archive." : "The shelf."}
+            </h1>
             <p className="mt-2.5 text-[13px] text-muted-foreground">
-              {novels.length === 0
-                ? "A private catalog for long-form work."
-                : `${novels.length} ${novels.length === 1 ? "book" : "books"} · ${numberFormat.format(totalWords)} words · files in your data volume`}
+              {visibleNovels.length === 0
+                ? view === "archived"
+                  ? "No archived books."
+                  : "A private catalog for long-form work."
+                : `${visibleNovels.length} ${visibleNovels.length === 1 ? "book" : "books"} · ${numberFormat.format(totalWords)} words · files in your data volume`}
             </p>
           </div>
           <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+            <div className="flex items-center gap-0.5 rounded-md border border-border bg-[#0c1218] p-0.5">
+              {(
+                [
+                  ["active", "Active"],
+                  ["archived", `Archived${archivedNovels.length ? ` (${archivedNovels.length})` : ""}`],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => {
+                    setView(value);
+                    setQuery("");
+                    setFilter("all");
+                  }}
+                  aria-pressed={view === value}
+                  className={`rounded-[4px] px-2.5 py-1 text-[11.5px] transition-colors ${
+                    view === value
+                      ? "bg-secondary text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             <div className="relative w-full sm:w-72">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
               <input
@@ -107,15 +166,25 @@ export function LibraryView({
                 </kbd>
               )}
             </div>
-            <Button onClick={() => setNewOpen(true)} className="shrink-0">
-              <Plus />
-              Create new
-            </Button>
+            {view === "active" ? (
+              <Button onClick={() => setNewOpen(true)} className="shrink-0">
+                <Plus />
+                Create new
+              </Button>
+            ) : null}
           </div>
         </header>
 
-        {novels.length === 0 ? (
+        {emptyLibrary ? (
           <EmptyShelf onCreate={() => setNewOpen(true)} />
+        ) : emptyArchive ? (
+          <div className="mt-8 rounded-lg border border-dashed border-border px-6 py-16 text-center">
+            <Archive className="mx-auto size-6 text-muted-foreground" />
+            <p className="mt-3 text-[14px] text-foreground">The archive is empty.</p>
+            <p className="mt-1 text-[12.5px] text-muted-foreground">
+              Archived books stay out of the shelf until you restore them.
+            </p>
+          </div>
         ) : (
           <>
             {!searching && featured ? <FeaturedBook novel={featured} /> : null}
@@ -125,7 +194,11 @@ export function LibraryView({
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-baseline gap-3">
                   <h2 id="all-books" className="text-[14px] font-semibold tracking-[-0.01em]">
-                    {searching ? "Results" : "All books"}
+                    {searching
+                      ? "Results"
+                      : view === "archived"
+                        ? "Archived books"
+                        : "All books"}
                   </h2>
                   <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
                     {filtered.length} {filtered.length === 1 ? "title" : "titles"}
@@ -177,7 +250,11 @@ export function LibraryView({
               ) : (
                 <ul className="mt-3 divide-y divide-border border-y border-border">
                   {filtered.map((novel) => (
-                    <BookRow key={novel.slug} novel={novel} />
+                    <BookRow
+                      key={novel.slug}
+                      novel={novel}
+                      archived={view === "archived"}
+                    />
                   ))}
                 </ul>
               )}
@@ -271,6 +348,7 @@ function FeaturedBook({ novel }: { novel: NovelListItem }) {
             >
               Details
             </Link>
+            <BookActionsMenu novel={novel} archived={false} />
           </div>
         </div>
       </div>
@@ -278,12 +356,18 @@ function FeaturedBook({ novel }: { novel: NovelListItem }) {
   );
 }
 
-function BookRow({ novel }: { novel: NovelListItem }) {
+function BookRow({
+  novel,
+  archived,
+}: {
+  novel: NovelListItem;
+  archived: boolean;
+}) {
   return (
-    <li>
+    <li className="flex items-center gap-2">
       <Link
         href={`/novels/${novel.slug}`}
-        className="group grid grid-cols-[56px_1fr] items-center gap-4 py-4 transition-colors hover:bg-white/[0.018] sm:grid-cols-[56px_1fr_auto] sm:gap-5"
+        className="group grid min-w-0 flex-1 grid-cols-[56px_1fr] items-center gap-4 py-4 transition-colors hover:bg-white/[0.018] sm:grid-cols-[56px_1fr_auto] sm:gap-5"
       >
         <BookCover
           title={novel.title}
@@ -309,14 +393,133 @@ function BookRow({ novel }: { novel: NovelListItem }) {
         </div>
         <div className="col-span-2 flex items-center justify-between gap-6 pl-[72px] text-[11px] text-muted-foreground sm:col-span-1 sm:justify-end sm:pl-0">
           <span className="tabular">{numberFormat.format(novel.wordCount)} words</span>
-          <span className="tabular hidden md:inline">Ch. {novel.currentChapter}</span>
+          <span className="tabular hidden md:inline">Ch. {novel.currentChapterNumber}</span>
           <span className="hidden w-24 text-right lg:inline">
             <RelativeTime value={novel.updatedAt} />
           </span>
           <ArrowRight className="size-4 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
         </div>
       </Link>
+      <BookActionsMenu novel={novel} archived={archived} />
     </li>
+  );
+}
+
+function BookActionsMenu({
+  novel,
+  archived,
+}: {
+  novel: NovelListItem;
+  archived: boolean;
+}) {
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  async function setArchive(next: boolean) {
+    setPending(true);
+    try {
+      const response = await fetch(`/api/novels/${novel.slug}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archived: next }),
+      });
+      const payload = (await response.json()) as { error?: { message?: string } };
+      if (!response.ok) {
+        toast.error(payload.error?.message || "The book could not be updated.");
+        return;
+      }
+      toast.success(next ? "Book moved to the archive." : "Book restored.");
+      router.refresh();
+    } catch {
+      toast.error("Could not reach the app server.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function removePermanently() {
+    setPending(true);
+    try {
+      const response = await fetch(`/api/novels/${novel.slug}?permanent=1`, {
+        method: "DELETE",
+      });
+      const payload = (await response.json()) as { error?: { message?: string } };
+      if (!response.ok) {
+        toast.error(payload.error?.message || "The book could not be deleted.");
+        return;
+      }
+      setConfirmOpen(false);
+      toast.success("Book permanently deleted.");
+      router.refresh();
+    } catch {
+      toast.error("Could not reach the app server.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`Actions for ${novel.title}`}
+            disabled={pending}
+          >
+            <MoreHorizontal />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {archived ? (
+            <>
+              <DropdownMenuItem onSelect={() => void setArchive(false)} disabled={pending}>
+                <ArchiveRestore />
+                Restore to shelf
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={() => setConfirmOpen(true)}
+                disabled={pending}
+                className="text-[#f2937f] focus:text-[#f2937f]"
+              >
+                <Trash2 />
+                Permanently delete
+              </DropdownMenuItem>
+            </>
+          ) : (
+            <DropdownMenuItem onSelect={() => void setArchive(true)} disabled={pending}>
+              <Archive />
+              Move to archive
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Permanently delete “{novel.title}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The database row, manuscript Markdown, illustrations, and chat history are
+              removed from the data volume. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pending}>Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => void removePermanently()}
+              disabled={pending}
+              className="bg-[#3a1c18] text-[#f2937f] hover:bg-[#4a241e]"
+            >
+              {pending ? "Deleting…" : "Delete forever"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 

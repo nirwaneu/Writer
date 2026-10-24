@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  Archive,
+  ArchiveRestore,
   ArrowLeft,
   ArrowRight,
   BookOpen,
@@ -16,6 +18,7 @@ import {
   PencilLine,
   Sparkles,
   Trash2,
+  Wand2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -87,6 +90,7 @@ export function BookDetailView({
   const [characterEditorOpen, setCharacterEditorOpen] = useState(false);
   const [charactersError, setCharactersError] = useState<string | null>(null);
   const [deletingPageNumber, setDeletingPageNumber] = useState<number | null>(null);
+  const [generatingTitle, setGeneratingTitle] = useState(false);
   const complete = outline.status === "complete";
   const currentPage =
     outline.chapters.find((item) => item.number === outline.currentChapter) ?? null;
@@ -173,6 +177,31 @@ export function BookDetailView({
     }
   }
 
+  async function generateBookTitle() {
+    setGeneratingTitle(true);
+    setFormError(null);
+    try {
+      const response = await fetch("/api/ai/title", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, kind: "book", premise }),
+      });
+      const payload = (await response.json()) as {
+        title?: string;
+        error?: { message?: string };
+      };
+      if (!response.ok || !payload.title) {
+        setFormError(payload.error?.message || "The title could not be generated.");
+        return;
+      }
+      setTitle(payload.title);
+    } catch {
+      setFormError("Could not reach the app server.");
+    } finally {
+      setGeneratingTitle(false);
+    }
+  }
+
   async function saveMeta(event: React.FormEvent) {
     event.preventDefault();
     setSaving(true);
@@ -234,6 +263,30 @@ export function BookDetailView({
     }
   }
 
+  async function setArchived(next: boolean) {
+    try {
+      const response = await fetch(`/api/novels/${slug}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archived: next }),
+      });
+      const payload = (await response.json()) as { error?: { message?: string } };
+      if (!response.ok) {
+        toast.error(payload.error?.message || "The book could not be updated.");
+        return;
+      }
+      toast.success(next ? "Book moved to the archive." : "Book restored.");
+      if (next) {
+        router.replace("/");
+        router.refresh();
+      } else {
+        router.refresh();
+      }
+    } catch {
+      toast.error("Could not reach the app server.");
+    }
+  }
+
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto w-full max-w-6xl px-5 pb-16 pt-5 sm:px-8">
@@ -265,6 +318,10 @@ export function BookDetailView({
                 <DropdownMenuItem onSelect={toggleComplete} disabled={statusPending}>
                   <Check />
                   {complete ? "Reopen book" : "Mark book complete"}
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => void setArchived(!outline.archived)}>
+                  {outline.archived ? <ArchiveRestore /> : <Archive />}
+                  {outline.archived ? "Restore to shelf" : "Move to archive"}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
@@ -536,13 +593,26 @@ export function BookDetailView({
             </DialogHeader>
             <div className="space-y-2">
               <Label htmlFor="book-title">Title</Label>
-              <Input
-                id="book-title"
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                maxLength={200}
-                required
-              />
+              <div className="flex items-center gap-2">
+                <Input
+                  id="book-title"
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  maxLength={200}
+                  required
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon-sm"
+                  onClick={() => void generateBookTitle()}
+                  disabled={generatingTitle || !premise.trim()}
+                  aria-label="Generate book title"
+                  title="Generate a title from the premise"
+                >
+                  {generatingTitle ? <Loader2 className="animate-spin" /> : <Wand2 />}
+                </Button>
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="book-premise">Premise</Label>

@@ -6,7 +6,13 @@ import type {
   PresetRoles,
   RoleConfig,
 } from "@/lib/schemas";
-import { DEFAULT_PRESET_ID, DEFAULT_IMAGE_PROMPTER_PARAMS, DEFAULT_IMAGE_PROMPTER_PROMPT } from "@/lib/presets/constants";
+import {
+  DEFAULT_PRESET_ID,
+  DEFAULT_IMAGE_PROMPTER_PARAMS,
+  DEFAULT_IMAGE_PROMPTER_PROMPT,
+  DEFAULT_TITLE_PARAMS,
+  DEFAULT_TITLE_PROMPT,
+} from "@/lib/presets/constants";
 
 const PLANNER_PROMPT = `You are the Planner inside VibeDraft, a drafting tool for professional novelists. You are the author's thinking partner for one chapter at a time.
 
@@ -37,6 +43,7 @@ export const DEFAULT_ROLE_PROMPTS = {
   executor: EXECUTOR_PROMPT,
   summarizer: SUMMARIZER_PROMPT,
   imagePrompter: DEFAULT_IMAGE_PROMPTER_PROMPT,
+  titleGenerator: DEFAULT_TITLE_PROMPT,
 } as const;
 
 export const DEFAULT_ROLE_PARAMS = {
@@ -65,6 +72,7 @@ export const DEFAULT_ROLE_PARAMS = {
     reasoningEffort: "",
   },
   imagePrompter: { ...DEFAULT_IMAGE_PROMPTER_PARAMS },
+  titleGenerator: { ...DEFAULT_TITLE_PARAMS },
 } as const;
 
 export function createDefaultRoles(): PresetRoles {
@@ -84,6 +92,10 @@ export function createDefaultRoles(): PresetRoles {
     imagePrompter: {
       systemPrompt: DEFAULT_IMAGE_PROMPTER_PROMPT,
       params: { ...DEFAULT_ROLE_PARAMS.imagePrompter },
+    },
+    titleGenerator: {
+      systemPrompt: DEFAULT_TITLE_PROMPT,
+      params: { ...DEFAULT_ROLE_PARAMS.titleGenerator },
     },
   };
 }

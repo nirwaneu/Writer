@@ -6,6 +6,7 @@ import {
   getChapterContent,
   getNovel,
   saveChapterContent,
+  updateChapterTitle,
 } from "@/lib/storage/novels";
 
 export const runtime = "nodejs";
@@ -43,6 +44,23 @@ export async function PUT(request: Request, { params }: Params) {
       input.expectedUpdatedAt,
     );
     const outline = await getNovel(slug);
+    return jsonOk({ chapter, outline });
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
+const titleSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+});
+
+export async function PATCH(request: Request, { params }: Params) {
+  try {
+    assertSameOrigin(request);
+    const { slug, number } = await params;
+    const input = await parseBody(request, titleSchema);
+    const outline = await updateChapterTitle(slug, Number(number), input.title);
+    const chapter = outline.chapters.find((item) => item.number === Number(number)) ?? null;
     return jsonOk({ chapter, outline });
   } catch (error) {
     return errorResponse(error);

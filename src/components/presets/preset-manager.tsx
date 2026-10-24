@@ -31,7 +31,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { RoleSettingsEditor } from "@/components/ai/role-settings-editor";
 import { clonePresetRoles } from "@/lib/presets/defaults";
-import { AI_ROLES, ROLE_LABELS, type AIRole } from "@/lib/presets/constants";
+import {
+  PRESET_EDIT_ROLES,
+  ROLE_LABELS,
+  type PresetRole,
+} from "@/lib/presets/constants";
 import { cn } from "@/lib/utils";
 import type { Preset, RoleConfig } from "@/lib/schemas";
 
@@ -63,7 +67,7 @@ export function PresetManager({
         initialPresets[0],
     ),
   );
-  const [activeRole, setActiveRole] = useState<AIRole>("planner");
+  const [activeRole, setActiveRole] = useState<PresetRole>("planner");
   const [saving, setSaving] = useState(false);
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -98,7 +102,7 @@ export function PresetManager({
     setDraft((current) => ({ ...current, ...patch }));
   }
 
-  function updateRole(role: AIRole, value: RoleConfig) {
+  function updateRole(role: PresetRole, value: RoleConfig) {
     setDraft((current) => ({
       ...current,
       roles: { ...current.roles, [role]: value },
@@ -110,7 +114,7 @@ export function PresetManager({
       setError("Give the preset a name.");
       return;
     }
-    if (AI_ROLES.some((role) => !draft.roles[role].systemPrompt.trim())) {
+    if (PRESET_EDIT_ROLES.some((role) => !draft.roles[role].systemPrompt.trim())) {
       setError("Every role needs a system prompt.");
       return;
     }
@@ -381,9 +385,9 @@ export function PresetManager({
               </div>
 
               <div className="p-5">
-                <Tabs value={activeRole} onValueChange={(value) => setActiveRole(value as AIRole)}>
+                <Tabs value={activeRole} onValueChange={(value) => setActiveRole(value as PresetRole)}>
                   <TabsList>
-                    {AI_ROLES.map((role) => (
+                    {PRESET_EDIT_ROLES.map((role) => (
                       <TabsTrigger key={role} value={role}>
                         {ROLE_LABELS[role]}
                       </TabsTrigger>

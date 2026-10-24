@@ -34,6 +34,7 @@ import {
   moveDirectory,
   pathExists,
   readText,
+  removeDirectory,
   withLock,
   writeTextAtomic,
 } from "@/lib/storage/fs";
@@ -192,6 +193,7 @@ async function outlineForRow(row: BookRow): Promise<Outline> {
     title: row.title,
     premise: row.premise,
     status: row.status,
+    archived: row.isArchived,
     characters: bookCharacters,
     chapters: bookChapters,
     ...(cover ? { cover } : {}),
@@ -206,6 +208,7 @@ function toListItem(row: {
   title: string;
   premise: string;
   status: Outline["status"];
+  archived: boolean;
   currentChapter: number;
   currentChapterNumber: number;
   wordCount: number | null;
@@ -219,6 +222,7 @@ function toListItem(row: {
     title: row.title,
     premise: row.premise,
     status: row.status,
+    archived: row.archived,
     chapterCount: Number(row.chapterCount ?? 0),
     currentChapter: row.currentChapter,
     currentChapterNumber: Number(row.currentChapterNumber ?? row.currentChapter),
@@ -229,7 +233,7 @@ function toListItem(row: {
   };
 }
 
-export async function listNovels(): Promise<NovelListItem[]> {
+export async function listNovels(archived = false): Promise<NovelListItem[]> {
   const db = await getDb();
   const rows = db
     .select({
@@ -237,6 +241,7 @@ export async function listNovels(): Promise<NovelListItem[]> {
       title: books.title,
       premise: books.premise,
       status: books.status,
+      archived: books.isArchived,
       currentChapter: books.currentChapter,
       coverImagePath: books.coverImagePath,
       createdAt: books.createdAt,
@@ -246,11 +251,28 @@ export async function listNovels(): Promise<NovelListItem[]> {
       wordCount: sql<number>`(select coalesce(sum(word_count), 0) from chapters where chapters.book_id = ${books.id})`,
     })
     .from(books)
-    .where(eq(books.isDraft, false))
+    .where(and(eq(books.isDraft, false), eq(books.isArchived, archived)))
     .orderBy(desc(books.updatedAt))
     .all();
 
   return rows.filter((row) => row.slug).map((row) => toListItem(row));
+}
+
+export async function listArchivedNovels(): Promise<NovelListItem[]> {
+  return listNovels(true);
+}
+
+export async function setNovelArchived(
+  slug: string,
+  archived: boolean,
+): Promise<Outline> {
+  const row = await getBookRowBySlug(slug);
+  const db = await getDb();
+  db.update(books)
+    .set({ isArchived: archived, updatedAt: now() })
+    .where(eq(books.id, row.id))
+    .run();
+  return getNovel(slug);
 }
 
 export async function getNovel(slug: string): Promise<Outline> {
@@ -433,6 +455,13 @@ export async function deleteNovel(slug: string): Promise<void> {
   db.delete(books).where(eq(books.id, row.id)).run();
 }
 
+export async function deleteNovelPermanently(slug: string): Promise<void> {
+  const row = await getBookRowBySlug(slug);
+  await removeDirectory(novelDir(slug));
+  const db = await getDb();
+  db.delete(books).where(eq(books.id, row.id)).run();
+}
+
 export async function discardDraft(id: string): Promise<void> {
   const row = await getDraftRow(id);
   const db = await getDb();
@@ -587,6 +616,30 @@ export async function saveChapterContent(
     const saved = await loadChapters(row.id);
     return saved.find((item) => item.number === number) ?? chapter;
   });
+}
+
+export async function updateChapterTitle(
+  slug: string,
+  number: number,
+  title: string,
+): Promise<Outline> {
+  assertChapterNumber(number);
+  const row = await getBookRowBySlug(slug);
+  const db = await getDb();
+  const timestamp = now();
+  db.transaction((tx) => {
+    tx.update(chaptersTable)
+      .set({ title: title.trim().slice(0, 200), updatedAt: timestamp })
+      .where(
+        and(
+          eq(chaptersTable.bookId, row.id),
+          eq(chaptersTable.number, number),
+        ),
+      )
+      .run();
+    tx.update(books).set({ updatedAt: timestamp }).where(eq(books.id, row.id)).run();
+  });
+  return getNovel(slug);
 }
 
 export async function saveChapterSummary(

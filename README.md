@@ -102,12 +102,15 @@ The Executor never receives the full manuscript. It receives the premise, charac
 
 ## Presets and per-book settings
 
-- **Global presets** live at `/presets`. Each preset stores a system prompt and sampling parameters for the Planner, Executor, Summarizer, and Image Prompter: temperature, Top-P, Top-K, frequency penalty, and presence penalty.
+- **Global presets** live at `/presets`. Each preset stores a system prompt and sampling parameters for the Planner, Executor, Summarizer, Image Prompter, and Title Generation: temperature, Top-P, Top-K, frequency penalty, and presence penalty.
+- **Title Generation** uses the Planner model and its own editable prompt. Book titles use the premise; chapter titles use the last Planner response from that chapter.
 - **The base preset** (`Default / General Fiction`) cannot be deleted. It is the fallback for books that have no local settings.
 - **Copy-on-write:** choosing a preset on the new-book screen snapshots the preset's prompts/parameters and the current global default models into the draft row. Publishing turns that row into the book.
 - **Book settings** in the workspace edits the active book's prompts, parameters, and models. Saving writes only that book's row; global presets and global models are untouched.
 - **Characters:** generate a character sheet from the premise with the Planner, or edit characters manually. Both paths write the Story Vault in SQLite.
 - **Pages:** add text chapters or illustration pages from the book page or workspace. Any page can be deleted with confirmation; deleting the current page moves you to a surviving page.
+- **Titles:** book details and the chapter title dialog include a **Generate Title** wand button. Regenerate as often as needed; the result is saved when you save the title.
+- **Archiving:** archive books from the shelf row menu or book details. The shelf shows active books by default; the **Archived** toggle reveals archived books with **Restore** and **Permanently delete** actions. Permanent delete removes the SQLite row and the book folder.
 - **Backwards compatibility:** legacy books and drafts imported without local settings resolve to the base/default preset and the global default models at call time. Saving in Book settings writes local settings to the book row.
 - **Payloads:** every AI call reads the book's config immediately before sending. The role's system prompt is the first message; the app appends the Story Vault/task block. Custom parameters are sent as `temperature`, `top_p`, `top_k`, `frequency_penalty`, and `presence_penalty`. `top_k` is omitted when set to 0 for provider compatibility. `reasoning_effort` is sent only when the optional field is non-empty.
 - **Model choice:** connections are global and can span multiple providers. Each role stores a provider-scoped model value, so the Planner, Executor, Summarizer, and Image Prompter can use models from different providers, per book.
@@ -191,6 +194,7 @@ There are no accounts, password resets, or multi-tenant boundaries. Do not expos
 | `POST /api/drafts` | Start a brainstorm draft |
 | `POST /api/drafts/:id/finalize` | Publish a manually written premise and auto-title if blank |
 | `POST /api/ai/image-prompt` | Write an illustration or cover prompt with the Image Prompter |
+| `POST /api/ai/title` | Generate a book or chapter title from its configured context |
 | `POST /api/ai/planner` | SSE Planner chat (draft premise or chapter) |
 | `POST /api/ai/premise` | Summarize premise, auto-title, publish draft |
 | `POST /api/ai/execute` | SSE Executor chapter draft |
@@ -207,6 +211,8 @@ There are no accounts, password resets, or multi-tenant boundaries. Do not expos
 | `POST /api/generate-cover` | Generate and persist a book cover |
 | `GET /api/novels/:slug/illustrations/:file` | Serve a stored illustration or cover |
 | `GET/PUT /api/novels/:slug/config` | Read or save the active book?s local config |
+| `PATCH /api/novels/:slug` | Edit metadata or archive/restore a book |
+| `DELETE /api/novels/:slug?permanent=1` | Permanently remove a book and its files |
 | `PUT /api/novels/:slug/chapters/:n` | Save Markdown with optimistic concurrency |
 | `POST /api/novels/:slug/chapters/:n/advance` | Create/open the next chapter |
 | `GET /api/novels/:slug/export?format=md\|docx\|html` | Export the book or one chapter |

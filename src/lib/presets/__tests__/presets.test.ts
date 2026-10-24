@@ -36,6 +36,9 @@ describe("default preset", () => {
     expect(preset.roles.planner.systemPrompt).toContain("You are the Planner");
     expect(preset.roles.executor.systemPrompt).toContain("You are the Executor");
     expect(preset.roles.summarizer.systemPrompt).toContain("Story Vault");
+    expect(preset.roles.titleGenerator.systemPrompt).toContain(
+      "catchy and relevant title",
+    );
     expect(preset.roles.executor.params.temperature).toBeGreaterThan(0);
   });
 });

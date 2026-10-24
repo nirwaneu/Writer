@@ -268,6 +268,21 @@ export function buildImagePromptMessages(
   return [systemOnly(rolePrompt), userMessage(subject.join("\n"))];
 }
 
+export function buildTitleGenerationMessages(
+  context: string,
+  rolePrompt: string,
+): ChatInputMessage[] {
+  return [
+    systemOnly(rolePrompt),
+    userMessage([
+      "[TEXT]",
+      trim(context, 30_000),
+      "",
+      "Output only the title.",
+    ].join("\n")),
+  ];
+}
+
 export function buildChapterTitleMessages(
   outline: Outline,
   chapter: number,

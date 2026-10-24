@@ -29,7 +29,13 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RoleSettingsEditor } from "@/components/ai/role-settings-editor";
 import { CoverPanel } from "@/components/illustration/cover-panel";
 import { clonePresetRoles } from "@/lib/presets/defaults";
-import { AI_ROLES, CORE_ROLES, ROLE_LABELS, type AIRole } from "@/lib/presets/constants";
+import {
+  CORE_ROLES,
+  PRESET_EDIT_ROLES,
+  ROLE_LABELS,
+  type AIRole,
+  type PresetRole,
+} from "@/lib/presets/constants";
 import type { BookConfig, Illustration, ModelRoles, Outline, Preset } from "@/lib/schemas";
 import type { ModelOption, ProviderModelGroup } from "@/lib/ai/model-options";
 
@@ -61,7 +67,7 @@ export function BookSettingsDialog({
   const [defaultPresetId, setDefaultPresetId] = useState("");
   const [modelGroups, setModelGroups] = useState<ProviderModelGroup[]>([]);
   const [modelOptions, setModelOptions] = useState<ModelOption[]>([]);
-  const [activeRole, setActiveRole] = useState<AIRole | "cover">("planner");
+  const [activeRole, setActiveRole] = useState<PresetRole | "cover">("planner");
   const [presetToLoad, setPresetToLoad] = useState("");
   const [bookTitle, setBookTitle] = useState("");
   const [cover, setCover] = useState<Illustration | undefined>();
@@ -154,7 +160,7 @@ export function BookSettingsDialog({
     };
   }, [open, slug, loadModels]);
 
-  function updateRole(role: AIRole, value: BookConfig["roles"][AIRole]) {
+  function updateRole(role: PresetRole, value: BookConfig["roles"][PresetRole]) {
     setConfig((current) =>
       current ? { ...current, roles: { ...current.roles, [role]: value } } : current,
     );
@@ -186,7 +192,7 @@ export function BookSettingsDialog({
       setError("Choose a model for Planner, Executor, and Summarizer.");
       return;
     }
-    if (AI_ROLES.some((role) => !config.roles[role].systemPrompt.trim())) {
+    if (PRESET_EDIT_ROLES.some((role) => !config.roles[role].systemPrompt.trim())) {
       setError("Every role needs a system prompt.");
       return;
     }
@@ -321,10 +327,10 @@ export function BookSettingsDialog({
 
             <Tabs
               value={activeRole}
-              onValueChange={(value) => setActiveRole(value as AIRole | "cover")}
+              onValueChange={(value) => setActiveRole(value as PresetRole | "cover")}
             >
               <TabsList>
-                {AI_ROLES.map((role) => (
+                {PRESET_EDIT_ROLES.map((role) => (
                   <TabsTrigger key={role} value={role}>
                     {ROLE_LABELS[role]}
                   </TabsTrigger>
@@ -343,6 +349,12 @@ export function BookSettingsDialog({
                   setCover(outline.cover);
                   router.refresh();
                 }}
+              />
+            ) : activeRole === "titleGenerator" ? (
+              <RoleSettingsEditor
+                role={activeRole}
+                value={config.roles[activeRole]}
+                onChange={(value) => updateRole(activeRole, value)}
               />
             ) : (
               <RoleSettingsEditor

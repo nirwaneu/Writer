@@ -432,6 +432,7 @@ export async function chatCompletion(
   } = options;
   const { chat } = resolveEndpoints(baseUrl);
   let lastError: AppError | null = null;
+  let requestMaxTokens = maxTokens;
 
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     try {
@@ -443,7 +444,7 @@ export async function chatCompletion(
           messages,
           ...generationFields(params, temperature),
           stream: false,
-          ...(maxTokens ? { max_tokens: maxTokens } : {}),
+          ...(requestMaxTokens ? { max_tokens: requestMaxTokens } : {}),
         }),
         signal: composeSignal(signal, timeoutMs),
         cache: "no-store",
@@ -465,6 +466,7 @@ export async function chatCompletion(
         choices?: Array<{
           message?: { content?: unknown };
           text?: string;
+          finish_reason?: string | null;
         }>;
         usage?: {
           prompt_tokens?: number;
@@ -480,12 +482,30 @@ export async function chatCompletion(
         });
       }
 
+      const finishReason = body.choices?.[0]?.finish_reason ?? null;
       const content = extractContent(body);
       if (!content.trim()) {
-        throw new AppError("AI_BAD_RESPONSE", "The model returned no text. Try again.", {
-          status: 502,
-          retryable: true,
-        });
+        if (finishReason === "length" && attempt < retries && requestMaxTokens) {
+          const nextMaxTokens = Math.min(requestMaxTokens * 2, 8_192);
+          console.warn(
+            `[ai] ${model} returned no visible text with max_tokens=${requestMaxTokens}; retrying with ${nextMaxTokens}.`,
+          );
+          requestMaxTokens = nextMaxTokens;
+          continue;
+        }
+        throw new AppError(
+          "AI_BAD_RESPONSE",
+          `The model returned no text${finishReason ? ` (finish: ${finishReason})` : ""}. Try again.`,
+          {
+            status: 502,
+            retryable: true,
+            details: {
+              finishReason,
+              maxTokens: requestMaxTokens,
+              usage: body.usage,
+            },
+          },
+        );
       }
 
       return {

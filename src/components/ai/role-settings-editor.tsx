@@ -6,15 +6,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { GenerationParamsFields } from "@/components/ai/parameter-fields";
 import { ModelCombobox } from "@/components/models/model-combobox";
-import { ROLE_LABELS, type AIRole } from "@/lib/presets/constants";
+import { ROLE_LABELS, type PresetRole } from "@/lib/presets/constants";
 import type { RoleConfig } from "@/lib/schemas";
 import type { ModelOption, ProviderModelGroup } from "@/lib/ai/model-options";
 
-const ROLE_HINTS: Record<AIRole, string> = {
+const ROLE_HINTS: Record<PresetRole, string> = {
   planner: "Thinks with you in the right rail. It plans beats; it does not write prose.",
   executor: "Writes the chapter into the left page from the Planner's plan.",
   summarizer: "Maintains the Story Vault after each chapter, and distills premises and titles.",
   imagePrompter: "Turns chapter summaries and book titles into visual prompts for illustration models.",
+  titleGenerator: "Names books and chapters from the provided context. Uses the Planner model.",
 };
 
 export function RoleSettingsEditor({
@@ -28,7 +29,7 @@ export function RoleSettingsEditor({
   modelLoading,
   modelError,
 }: {
-  role: AIRole;
+  role: PresetRole;
   value: RoleConfig;
   onChange: (next: RoleConfig) => void;
   model?: string;

@@ -1,12 +1,10 @@
 import { z } from "zod";
 import { assertSameOrigin, errorResponse, jsonOk, parseBody } from "@/lib/api";
-import { chatCompletion } from "@/lib/ai/client";
-import { buildTitleMessages } from "@/lib/ai/prompts";
+import { generateTitleText } from "@/lib/ai/title";
 import { resolveModelRoute } from "@/lib/ai/routing";
 import { publishDraft } from "@/lib/storage/novels";
 import { requireConfig } from "@/lib/storage/config";
 import { getDraftBookConfig } from "@/lib/storage/book-config";
-import { readDraftChat } from "@/lib/storage/chats";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,21 +43,18 @@ function fallbackTitle(premise: string): string {
 async function generateTitle(draftId: string, premise: string): Promise<string> {
   const global = await requireConfig();
   const config = (await getDraftBookConfig(draftId)).config;
-  const role = config.roles.planner;
+  const role = config.roles.titleGenerator;
   const route = resolveModelRoute(global, config.models.planner);
-  const chat = await readDraftChat(draftId, "premise");
   try {
-    const result = await chatCompletion({
+    const content = await generateTitleText({
       baseUrl: route.provider.baseUrl,
       apiKey: route.provider.apiKey,
       model: route.model,
-      messages: buildTitleMessages(chat.messages, premise, role.systemPrompt),
+      context: premise,
+      systemPrompt: role.systemPrompt,
       params: role.params,
-      maxTokens: 40,
-      timeoutMs: 60_000,
-      retries: 1,
     });
-    return cleanTitle(result.content) || fallbackTitle(premise);
+    return cleanTitle(content) || fallbackTitle(premise);
   } catch {
     return fallbackTitle(premise);
   }

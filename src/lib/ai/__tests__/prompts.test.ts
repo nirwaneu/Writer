@@ -14,6 +14,7 @@ const outline: Outline = {
   title: "The Cartographer's Debt",
   premise: "A cartographer returns to a house that remembers her.",
   status: "active",
+  archived: false,
   characters: [{ name: "Mara", role: "protagonist", description: "A cartographer." }],
   chapters: [
     {
@@ -179,3 +180,4 @@ describe("splitForSummary", () => {
     expect(splitForSummary("one paragraph", 700)).toEqual(["one paragraph"]);
   });
 });
+

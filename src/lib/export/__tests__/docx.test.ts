@@ -8,6 +8,7 @@ const outline: Outline = {
   title: "A Test Novel",
   premise: "A short premise.",
   status: "active",
+  archived: false,
   characters: [],
   chapters: [
     {
@@ -39,3 +40,4 @@ describe("buildDocx", () => {
     expect(buffer.subarray(0, 2).toString()).toBe("PK");
   });
 });
+

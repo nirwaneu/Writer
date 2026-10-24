@@ -3,6 +3,8 @@ import {
   DEFAULT_IMAGE_PROMPTER_PARAMS,
   DEFAULT_IMAGE_PROMPTER_PROMPT,
   DEFAULT_PRESET_ID,
+  DEFAULT_TITLE_PARAMS,
+  DEFAULT_TITLE_PROMPT,
 } from "@/lib/presets/constants";
 
 const PREMISE_MAX = 200_000;
@@ -54,6 +56,7 @@ export const outlineSchema = z.object({
   title: z.string().min(1).max(200),
   premise: z.string().max(PREMISE_MAX).default(""),
   status: z.enum(["brainstorming", "active", "complete"]).default("active"),
+  archived: z.boolean().default(false),
   characters: z.array(characterSchema).max(100).default([]),
   chapters: z.array(chapterSchema).max(500).default([]),
   cover: illustrationSchema.optional(),
@@ -111,6 +114,10 @@ export const presetRolesSchema = z.object({
   imagePrompter: roleConfigSchema.default({
     systemPrompt: DEFAULT_IMAGE_PROMPTER_PROMPT,
     params: { ...DEFAULT_IMAGE_PROMPTER_PARAMS },
+  }),
+  titleGenerator: roleConfigSchema.default({
+    systemPrompt: DEFAULT_TITLE_PROMPT,
+    params: { ...DEFAULT_TITLE_PARAMS },
   }),
 });
 
@@ -246,6 +253,7 @@ export type NovelListItem = {
   title: string;
   premise: string;
   status: Outline["status"];
+  archived: boolean;
   chapterCount: number;
   currentChapter: number;
   currentChapterNumber: number;

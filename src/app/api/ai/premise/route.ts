@@ -7,8 +7,8 @@ import { getDraft, publishDraft } from "@/lib/storage/novels";
 import { readDraftChat } from "@/lib/storage/chats";
 import {
   buildPremiseMessages,
-  buildTitleMessages,
 } from "@/lib/ai/prompts";
+import { generateTitleText } from "@/lib/ai/title";
 import { chatCompletion } from "@/lib/ai/client";
 import { acquire, release } from "@/lib/ai/active";
 import { resolveModelRoute } from "@/lib/ai/routing";
@@ -98,23 +98,17 @@ export async function POST(request: Request) {
       let title = "Untitled Novel";
       let titleFallback = false;
       try {
-        const titleRole = draftConfig.roles.planner;
+        const titleRole = draftConfig.roles.titleGenerator;
         const titleRoute = resolveModelRoute(global, draftConfig.models.planner);
-        const result = await chatCompletion({
+        const titleContent = await generateTitleText({
           baseUrl: titleRoute.provider.baseUrl,
           apiKey: titleRoute.provider.apiKey,
           model: titleRoute.model,
-          messages: buildTitleMessages(
-            chat.messages,
-            premise,
-            titleRole.systemPrompt,
-          ),
+          context: premise,
+          systemPrompt: titleRole.systemPrompt,
           params: titleRole.params,
-          maxTokens: 40,
-          timeoutMs: 60_000,
-          retries: 1,
         });
-        const cleaned = cleanTitle(result.content);
+        const cleaned = cleanTitle(titleContent);
         if (cleaned) title = cleaned;
         else titleFallback = true;
       } catch {

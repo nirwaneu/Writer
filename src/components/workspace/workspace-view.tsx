@@ -42,6 +42,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ChatThread } from "@/components/chat/chat-thread";
 import { BookSettingsDialog } from "@/components/workspace/book-settings-dialog";
 import { AddPageMenu } from "@/components/workspace/add-page-menu";
@@ -142,6 +152,11 @@ function WorkspaceSession({
   const [characterEditorOpen, setCharacterEditorOpen] = useState(false);
   const [charactersError, setCharactersError] = useState<string | null>(null);
   const [deletingPageNumber, setDeletingPageNumber] = useState<number | null>(null);
+  const [chapterTitleOpen, setChapterTitleOpen] = useState(false);
+  const [chapterTitleDraft, setChapterTitleDraft] = useState("");
+  const [generatingChapterTitle, setGeneratingChapterTitle] = useState(false);
+  const [savingChapterTitle, setSavingChapterTitle] = useState(false);
+  const [chapterTitleError, setChapterTitleError] = useState<string | null>(null);
   const reading = useReadingPreferences();
   const [models, setModels] = useState({
     planner: plannerModel,
@@ -620,6 +635,75 @@ function WorkspaceSession({
     }
   }
 
+  function openChapterTitle() {
+    setChapterTitleDraft(
+      /^Chapter\s+\d+$/i.test(chapter.title) ? "" : chapter.title,
+    );
+    setChapterTitleError(null);
+    setChapterTitleOpen(true);
+  }
+
+  async function generateChapterTitle() {
+    setGeneratingChapterTitle(true);
+    setChapterTitleError(null);
+    try {
+      const response = await fetch("/api/ai/title", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug,
+          kind: "chapter",
+          chapter: chapterNumber,
+        }),
+      });
+      const payload = (await response.json()) as {
+        title?: string;
+        error?: { message?: string };
+      };
+      if (!response.ok || !payload.title) {
+        setChapterTitleError(
+          payload.error?.message || "The chapter title could not be generated.",
+        );
+        return;
+      }
+      setChapterTitleDraft(payload.title);
+    } catch {
+      setChapterTitleError("Could not reach the app server.");
+    } finally {
+      setGeneratingChapterTitle(false);
+    }
+  }
+
+  async function saveChapterTitle() {
+    if (!chapterTitleDraft.trim()) return;
+    setSavingChapterTitle(true);
+    setChapterTitleError(null);
+    try {
+      const response = await fetch(`/api/novels/${slug}/chapters/${chapterNumber}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: chapterTitleDraft.trim() }),
+      });
+      const payload = (await response.json()) as {
+        outline?: Outline;
+        error?: { message?: string };
+      };
+      if (!response.ok || !payload.outline) {
+        setChapterTitleError(
+          payload.error?.message || "The chapter title could not be saved.",
+        );
+        return;
+      }
+      setOutline(payload.outline);
+      setChapterTitleOpen(false);
+      toast.success("Chapter title saved.");
+    } catch {
+      setChapterTitleError("Could not reach the app server.");
+    } finally {
+      setSavingChapterTitle(false);
+    }
+  }
+
   async function generateCharacters() {
     setGeneratingCharacters(true);
     setCharactersError(null);
@@ -972,9 +1056,24 @@ function WorkspaceSession({
                 {isIllustration ? "Plate" : meta.label}
               </span>
             </div>
-            <h1 className="paper-title mt-2 text-[2rem] leading-[1.08] tracking-[-0.02em] sm:text-[2.35rem]">
-              {title}
-            </h1>
+            <div className="mt-2 flex items-start justify-between gap-3">
+              <h1 className="paper-title text-[2rem] leading-[1.08] tracking-[-0.02em] sm:text-[2.35rem]">
+                {title}
+              </h1>
+              {!isIllustration ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={openChapterTitle}
+                  aria-label="Edit or generate chapter title"
+                  title="Edit or generate chapter title"
+                  className="mt-1 shrink-0"
+                >
+                  <PencilLine />
+                </Button>
+              ) : null}
+            </div>
             <div className="paper-rule mt-2 h-px w-12" />
 
             <div className="mt-7">
@@ -1412,6 +1511,63 @@ function WorkspaceSession({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={chapterTitleOpen} onOpenChange={setChapterTitleOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Chapter title</DialogTitle>
+            <DialogDescription>
+              Generate a title from the last Planner response, or write one yourself.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="chapter-title">Title</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="chapter-title"
+                value={chapterTitleDraft}
+                onChange={(event) => setChapterTitleDraft(event.target.value)}
+                maxLength={200}
+                placeholder="Untitled Chapter"
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => void generateChapterTitle()}
+                disabled={generatingChapterTitle}
+              >
+                {generatingChapterTitle ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  <Wand2 />
+                )}
+                Generate Title
+              </Button>
+            </div>
+            {chapterTitleError ? (
+              <p className="rounded-md border border-[#5a2c25] bg-[#241411] p-2.5 text-[11.5px] leading-relaxed text-[#f2937f]">
+                {chapterTitleError}
+              </p>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              onClick={() => setChapterTitleOpen(false)}
+              disabled={savingChapterTitle}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void saveChapterTitle()}
+              disabled={savingChapterTitle || !chapterTitleDraft.trim()}
+            >
+              {savingChapterTitle ? <Loader2 className="animate-spin" /> : null}
+              {savingChapterTitle ? "Saving…" : "Save title"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {characterEditorOpen ? (
         <CharacterEditorDialog

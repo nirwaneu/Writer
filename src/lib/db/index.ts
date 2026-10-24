@@ -28,6 +28,7 @@ const PROVIDER_COLUMNS: Array<[string, string]> = [
 ];
 
 const BOOK_COLUMNS: Array<[string, string]> = [
+  ["is_archived", "INTEGER NOT NULL DEFAULT 0"],
   ["image_prompter_model", "TEXT"],
   ["cover_image_path", "TEXT"],
   ["cover_image_prompt", "TEXT"],
@@ -111,6 +112,7 @@ CREATE TABLE IF NOT EXISTS books (
   premise TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'active',
   is_draft INTEGER NOT NULL DEFAULT 0,
+  is_archived INTEGER NOT NULL DEFAULT 0,
   current_chapter INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,

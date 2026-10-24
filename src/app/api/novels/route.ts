@@ -1,12 +1,13 @@
 import { assertSameOrigin, errorResponse, jsonOk } from "@/lib/api";
-import { createDraft, listNovels } from "@/lib/storage/novels";
+import { createDraft, listArchivedNovels, listNovels } from "@/lib/storage/novels";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const novels = await listNovels();
+    const archived = new URL(request.url).searchParams.get("archived") === "1";
+    const novels = archived ? await listArchivedNovels() : await listNovels();
     return jsonOk({ novels });
   } catch (error) {
     return errorResponse(error);

@@ -63,6 +63,7 @@ export const books = sqliteTable(
     premise: text("premise").notNull().default(""),
     status: text("status").$type<Outline["status"]>().notNull().default("active"),
     isDraft: integer("is_draft", { mode: "boolean" }).notNull().default(false),
+    isArchived: integer("is_archived", { mode: "boolean" }).notNull().default(false),
     currentChapter: integer("current_chapter").notNull().default(1),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),

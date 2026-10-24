@@ -12,11 +12,11 @@ import {
 } from "@/lib/storage/novels";
 import {
   buildChapterSummaryMessages,
-  buildChapterTitleMessages,
   buildChunkSummaryMessages,
   buildCombineSummaryMessages,
   splitForSummary,
 } from "@/lib/ai/prompts";
+import { generateTitleText } from "@/lib/ai/title";
 import { chatCompletion } from "@/lib/ai/client";
 import { acquire, release } from "@/lib/ai/active";
 import { resolveModelRoute } from "@/lib/ai/routing";
@@ -144,24 +144,17 @@ export async function POST(request: Request) {
 
     let chapterTitle: string | undefined;
     try {
-      const plannerRole = bookConfig.roles.planner;
+      const titleRole = bookConfig.roles.titleGenerator;
       const plannerRoute = resolveModelRoute(global, bookConfig.models.planner);
-      const titleResult = await chatCompletion({
+      const titleContent = await generateTitleText({
         baseUrl: plannerRoute.provider.baseUrl,
         apiKey: plannerRoute.provider.apiKey,
         model: plannerRoute.model,
-        messages: buildChapterTitleMessages(
-          outline,
-          input.chapter,
-          text,
-          plannerRole.systemPrompt,
-        ),
-        params: plannerRole.params,
-        maxTokens: 40,
-        timeoutMs: 60_000,
-        retries: 1,
+        context: text,
+        systemPrompt: titleRole.systemPrompt,
+        params: titleRole.params,
       });
-      chapterTitle = cleanChapterTitle(titleResult.content) || undefined;
+      chapterTitle = cleanChapterTitle(titleContent) || undefined;
     } catch {
       chapterTitle = undefined;
     }
