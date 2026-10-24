@@ -96,13 +96,52 @@ export function RoleSettingsEditor({
           onChange={(event) =>
             onChange({ ...value, systemPrompt: event.target.value })
           }
-          className="min-h-48 font-sans text-[12.5px] leading-relaxed"
-          maxLength={30_000}
+          className="min-h-64 resize-y font-sans text-[12.5px] leading-relaxed"
           spellCheck
         />
         <p className="text-[10.5px] leading-relaxed text-muted-foreground">
-          Runs first. The vault and task block are appended automatically.
+          Runs first. The vault and task block are appended automatically. No character limit.
         </p>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor={`injection-after-system-${role}`}>
+            Injection: After System Prompt
+          </Label>
+          <Textarea
+            id={`injection-after-system-${role}`}
+            value={value.injectionAfterSystemPrompt ?? ""}
+            onChange={(event) =>
+              onChange({ ...value, injectionAfterSystemPrompt: event.target.value })
+            }
+            className="min-h-32 resize-y font-sans text-[12px] leading-relaxed"
+            placeholder="Optional assistant message inserted immediately after the system prompt."
+            spellCheck
+          />
+          <p className="text-[10.5px] leading-relaxed text-muted-foreground">
+            Sent as an <span className="font-mono">assistant</span> message at position 2.
+          </p>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor={`injection-after-last-${role}`}>
+            Injection: After Last Message
+          </Label>
+          <Textarea
+            id={`injection-after-last-${role}`}
+            value={value.injectionAfterLastMessage ?? ""}
+            onChange={(event) =>
+              onChange({ ...value, injectionAfterLastMessage: event.target.value })
+            }
+            className="min-h-32 resize-y font-sans text-[12px] leading-relaxed"
+            placeholder="Optional assistant message appended after the final user message."
+            spellCheck
+          />
+          <p className="text-[10.5px] leading-relaxed text-muted-foreground">
+            Sent as a final <span className="font-mono">assistant</span> message.
+          </p>
+        </div>
       </div>
 
       <div>

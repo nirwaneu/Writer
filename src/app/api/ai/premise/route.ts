@@ -7,6 +7,7 @@ import { getDraft, publishDraft } from "@/lib/storage/novels";
 import { readDraftChat } from "@/lib/storage/chats";
 import {
   buildPremiseMessages,
+  roleInjections,
 } from "@/lib/ai/prompts";
 import { generateTitleText } from "@/lib/ai/title";
 import { chatCompletion } from "@/lib/ai/client";
@@ -64,7 +65,11 @@ export async function POST(request: Request) {
           baseUrl: summarizerRoute.provider.baseUrl,
           apiKey: summarizerRoute.provider.apiKey,
           model: summarizerRoute.model,
-          messages: buildPremiseMessages(chat.messages, summarizerRole.systemPrompt),
+          messages: buildPremiseMessages(
+            chat.messages,
+            summarizerRole.systemPrompt,
+            roleInjections(summarizerRole),
+          ),
           params: summarizerRole.params,
           maxTokens: 700,
           timeoutMs: 120_000,
@@ -107,6 +112,7 @@ export async function POST(request: Request) {
           context: premise,
           systemPrompt: titleRole.systemPrompt,
           params: titleRole.params,
+          injections: roleInjections(titleRole),
         });
         const cleaned = cleanTitle(titleContent);
         if (cleaned) title = cleaned;

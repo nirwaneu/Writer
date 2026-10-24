@@ -1,4 +1,4 @@
-import type { ChatMessage, Outline } from "@/lib/schemas";
+import type { ChatMessage, Outline, RoleConfig } from "@/lib/schemas";
 import type { ChatInputMessage } from "@/lib/ai/client";
 import { chapterDisplayNumber, chapterDisplayTitle } from "@/lib/pages";
 
@@ -95,12 +95,46 @@ function userMessage(content: string): ChatInputMessage {
   return { role: "user", content: content.trim() };
 }
 
+export type PromptInjections = {
+  afterSystemPrompt?: string;
+  afterLastMessage?: string;
+};
+
+export function roleInjections(
+  role: Pick<RoleConfig, "injectionAfterSystemPrompt" | "injectionAfterLastMessage">,
+): PromptInjections {
+  return {
+    afterSystemPrompt: role.injectionAfterSystemPrompt,
+    afterLastMessage: role.injectionAfterLastMessage,
+  };
+}
+
+function applyInjections(
+  messages: ChatInputMessage[],
+  injections?: PromptInjections,
+): ChatInputMessage[] {
+  if (!injections) return messages;
+  const afterSystem = injections.afterSystemPrompt?.trim();
+  const afterLast = injections.afterLastMessage?.trim();
+  if (!afterSystem && !afterLast) return messages;
+
+  const next = [...messages];
+  if (afterSystem) {
+    next.splice(1, 0, { role: "assistant", content: afterSystem });
+  }
+  if (afterLast) {
+    next.push({ role: "assistant", content: afterLast });
+  }
+  return next;
+}
+
 export function buildPlannerMessages(
   outline: Outline,
   chapter: number,
   history: ChatMessage[],
   userMessageText: string,
   rolePrompt: string,
+  injections?: PromptInjections,
 ): ChatInputMessage[] {
   const chapterEntry = outline.chapters.find((item) => item.number === chapter);
   const displayNumber = chapterEntry ? chapterDisplayNumber(chapterEntry) : chapter;
@@ -129,7 +163,7 @@ export function buildPlannerMessages(
   }
 
   messages.push(userMessage(`${userMessageText.trim()}\n\n[TASK] Plan this chapter. Do not write manuscript prose, dialogue passages, or finished paragraphs.`));
-  return messages;
+  return applyInjections(messages, injections);
 }
 
 export function buildExecutorMessages(
@@ -137,6 +171,7 @@ export function buildExecutorMessages(
   chapter: number,
   history: ChatMessage[],
   rolePrompt: string,
+  injections?: PromptInjections,
 ): ChatInputMessage[] {
   const chapterEntry = outline.chapters.find((item) => item.number === chapter);
   const displayNumber = chapterEntry ? chapterDisplayNumber(chapterEntry) : chapter;
@@ -158,17 +193,18 @@ export function buildExecutorMessages(
     `[TASK] Write Chapter ${displayNumber} now. Output only the chapter prose in Markdown; do not include a chapter title heading, notes, or a summary.`,
   ].join("\n");
 
-  return [systemOnly(rolePrompt), userMessage(content)];
+  return applyInjections([systemOnly(rolePrompt), userMessage(content)], injections);
 }
 
 export function buildPremiseMessages(
   history: ChatMessage[],
   rolePrompt: string,
+  injections?: PromptInjections,
 ): ChatInputMessage[] {
   const chat = transcript(history, 30_000);
   if (!chat.trim()) throw new Error("NO_BRAINSTORM");
 
-  return [
+  return applyInjections([
     systemOnly(rolePrompt),
     userMessage([
       "[TASK]",
@@ -182,7 +218,7 @@ export function buildPremiseMessages(
       "",
       "Write the premise now.",
     ].join("\n")),
-  ];
+  ], injections);
 }
 
 export function buildTitleMessages(
@@ -213,8 +249,9 @@ export function buildTitleMessages(
 export function buildCharacterExtractionMessages(
   outline: Outline,
   rolePrompt: string,
+  injections?: PromptInjections,
 ): ChatInputMessage[] {
-  return [
+  return applyInjections([
     systemOnly(rolePrompt),
     userMessage([
       "[TASK]",
@@ -230,12 +267,13 @@ export function buildCharacterExtractionMessages(
       "",
       "Return the JSON array now.",
     ].join("\n")),
-  ];
+  ], injections);
 }
 
 export function buildImagePromptMessages(
   context: { kind: "chapter" | "cover"; title: string; premise: string; summary?: string; previousTitle?: string },
   rolePrompt: string,
+  injections?: PromptInjections,
 ): ChatInputMessage[] {
   const subject =
     context.kind === "cover"
@@ -265,14 +303,15 @@ export function buildImagePromptMessages(
           trim(context.summary || "No previous chapter summary recorded.", 8_000),
         ];
 
-  return [systemOnly(rolePrompt), userMessage(subject.join("\n"))];
+  return applyInjections([systemOnly(rolePrompt), userMessage(subject.join("\n"))], injections);
 }
 
 export function buildTitleGenerationMessages(
   context: string,
   rolePrompt: string,
+  injections?: PromptInjections,
 ): ChatInputMessage[] {
-  return [
+  return applyInjections([
     systemOnly(rolePrompt),
     userMessage([
       "[TEXT]",
@@ -280,7 +319,7 @@ export function buildTitleGenerationMessages(
       "",
       "Output only the title.",
     ].join("\n")),
-  ];
+  ], injections);
 }
 
 export function buildChapterTitleMessages(
@@ -311,8 +350,9 @@ export function buildChapterSummaryMessages(
   chapter: number,
   chapterText: string,
   rolePrompt: string,
+  injections?: PromptInjections,
 ): ChatInputMessage[] {
-  return [
+  return applyInjections([
     systemOnly(rolePrompt),
     userMessage([
       "[STORY CONTEXT]",
@@ -327,7 +367,7 @@ export function buildChapterSummaryMessages(
       "Be factual and specific. Do not praise, analyze, or interpret theme. Do not use headings, bullets, or markdown.",
       "Output only the summary.",
     ].join("\n")),
-  ];
+  ], injections);
 }
 
 export function buildChunkSummaryMessages(
@@ -337,10 +377,11 @@ export function buildChunkSummaryMessages(
   index: number,
   total: number,
   rolePrompt: string,
+  injections?: PromptInjections,
 ): ChatInputMessage[] {
   const entry = outline.chapters.find((item) => item.number === chapter);
   const display = entry ? chapterDisplayNumber(entry) : chapter;
-  return [
+  return applyInjections([
     systemOnly(rolePrompt),
     userMessage([
       "[TASK]",
@@ -352,7 +393,7 @@ export function buildChunkSummaryMessages(
       "",
       `NOVEL: ${outline.title}`,
     ].join("\n")),
-  ];
+  ], injections);
 }
 
 export function buildCombineSummaryMessages(
@@ -360,10 +401,11 @@ export function buildCombineSummaryMessages(
   chapter: number,
   partials: string[],
   rolePrompt: string,
+  injections?: PromptInjections,
 ): ChatInputMessage[] {
   const entry = outline.chapters.find((item) => item.number === chapter);
   const display = entry ? chapterDisplayNumber(entry) : chapter;
-  return [
+  return applyInjections([
     systemOnly(rolePrompt),
     userMessage([
       "[TASK]",
@@ -375,7 +417,7 @@ export function buildCombineSummaryMessages(
       "",
       `NOVEL: ${outline.title}`,
     ].join("\n")),
-  ];
+  ], injections);
 }
 
 export function splitForSummary(text: string, limit = 40_000): string[] {

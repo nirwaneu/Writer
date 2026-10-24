@@ -103,7 +103,9 @@ export const generationParamsSchema = z.object({
 });
 
 export const roleConfigSchema = z.object({
-  systemPrompt: z.string().trim().min(1).max(30_000),
+  systemPrompt: z.string().trim().min(1),
+  injectionAfterSystemPrompt: z.string().default(""),
+  injectionAfterLastMessage: z.string().default(""),
   params: generationParamsSchema,
 });
 
@@ -113,10 +115,14 @@ export const presetRolesSchema = z.object({
   summarizer: roleConfigSchema,
   imagePrompter: roleConfigSchema.default({
     systemPrompt: DEFAULT_IMAGE_PROMPTER_PROMPT,
+    injectionAfterSystemPrompt: "",
+    injectionAfterLastMessage: "",
     params: { ...DEFAULT_IMAGE_PROMPTER_PARAMS },
   }),
   titleGenerator: roleConfigSchema.default({
     systemPrompt: DEFAULT_TITLE_PROMPT,
+    injectionAfterSystemPrompt: "",
+    injectionAfterLastMessage: "",
     params: { ...DEFAULT_TITLE_PARAMS },
   }),
 });

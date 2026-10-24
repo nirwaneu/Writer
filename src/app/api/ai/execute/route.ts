@@ -10,7 +10,7 @@ import {
   saveChapterContent,
 } from "@/lib/storage/novels";
 import { readNovelChat } from "@/lib/storage/chats";
-import { buildExecutorMessages } from "@/lib/ai/prompts";
+import { buildExecutorMessages, roleInjections } from "@/lib/ai/prompts";
 import { openChatStream } from "@/lib/ai/client";
 import { parseOpenAIStream, sseResponse } from "@/lib/ai/sse";
 import { acquire, release } from "@/lib/ai/active";
@@ -48,6 +48,7 @@ export async function POST(request: Request) {
         input.chapter,
         chat.messages,
         executorRole.systemPrompt,
+        roleInjections(executorRole),
       );
     } catch {
       throw new AppError(

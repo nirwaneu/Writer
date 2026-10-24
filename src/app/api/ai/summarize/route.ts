@@ -14,6 +14,7 @@ import {
   buildChapterSummaryMessages,
   buildChunkSummaryMessages,
   buildCombineSummaryMessages,
+  roleInjections,
   splitForSummary,
 } from "@/lib/ai/prompts";
 import { generateTitleText } from "@/lib/ai/title";
@@ -101,6 +102,7 @@ export async function POST(request: Request) {
               index + 1,
               chunks.length,
               summarizerRole.systemPrompt,
+              roleInjections(summarizerRole),
             ),
             maxTokens: 420,
           });
@@ -113,6 +115,7 @@ export async function POST(request: Request) {
             input.chapter,
             partials,
             summarizerRole.systemPrompt,
+            roleInjections(summarizerRole),
           ),
         });
         summary = combined.content;
@@ -124,6 +127,7 @@ export async function POST(request: Request) {
             input.chapter,
             text,
             summarizerRole.systemPrompt,
+            roleInjections(summarizerRole),
           ),
         });
         summary = result.content;
@@ -153,6 +157,7 @@ export async function POST(request: Request) {
         context: text,
         systemPrompt: titleRole.systemPrompt,
         params: titleRole.params,
+        injections: roleInjections(titleRole),
       });
       chapterTitle = cleanChapterTitle(titleContent) || undefined;
     } catch {

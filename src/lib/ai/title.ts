@@ -1,5 +1,8 @@
 import { chatCompletion } from "@/lib/ai/client";
-import { buildTitleGenerationMessages } from "@/lib/ai/prompts";
+import {
+  buildTitleGenerationMessages,
+  type PromptInjections,
+} from "@/lib/ai/prompts";
 import type { GenerationParams } from "@/lib/schemas";
 
 export const TITLE_MAX_TOKENS = 1_024;
@@ -11,6 +14,7 @@ export async function generateTitleText({
   context,
   systemPrompt,
   params,
+  injections,
   timeoutMs = 60_000,
   retries = 1,
 }: {
@@ -20,6 +24,7 @@ export async function generateTitleText({
   context: string;
   systemPrompt: string;
   params?: GenerationParams;
+  injections?: PromptInjections;
   timeoutMs?: number;
   retries?: number;
 }): Promise<string> {
@@ -27,7 +32,7 @@ export async function generateTitleText({
     baseUrl,
     apiKey,
     model,
-    messages: buildTitleGenerationMessages(context, systemPrompt),
+    messages: buildTitleGenerationMessages(context, systemPrompt, injections),
     params,
     maxTokens: TITLE_MAX_TOKENS,
     timeoutMs,

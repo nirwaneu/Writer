@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { assertSameOrigin, errorResponse, jsonOk, parseBody } from "@/lib/api";
 import { chatCompletion } from "@/lib/ai/client";
-import { buildImagePromptMessages } from "@/lib/ai/prompts";
+import { buildImagePromptMessages, roleInjections } from "@/lib/ai/prompts";
 import { resolveModelRoute } from "@/lib/ai/routing";
 import { AppError, NotFoundError } from "@/lib/errors";
 import { requireConfig } from "@/lib/storage/config";
@@ -96,7 +96,11 @@ export async function POST(request: Request) {
       baseUrl: route.provider.baseUrl,
       apiKey: route.provider.apiKey,
       model: route.model,
-      messages: buildImagePromptMessages(context, role.systemPrompt),
+      messages: buildImagePromptMessages(
+        context,
+        role.systemPrompt,
+        roleInjections(role),
+      ),
       params: role.params,
       maxTokens: 500,
       timeoutMs: 90_000,

@@ -79,22 +79,32 @@ export function createDefaultRoles(): PresetRoles {
   return {
     planner: {
       systemPrompt: PLANNER_PROMPT,
+      injectionAfterSystemPrompt: "",
+      injectionAfterLastMessage: "",
       params: { ...DEFAULT_ROLE_PARAMS.planner },
     },
     executor: {
       systemPrompt: EXECUTOR_PROMPT,
+      injectionAfterSystemPrompt: "",
+      injectionAfterLastMessage: "",
       params: { ...DEFAULT_ROLE_PARAMS.executor },
     },
     summarizer: {
       systemPrompt: SUMMARIZER_PROMPT,
+      injectionAfterSystemPrompt: "",
+      injectionAfterLastMessage: "",
       params: { ...DEFAULT_ROLE_PARAMS.summarizer },
     },
     imagePrompter: {
       systemPrompt: DEFAULT_IMAGE_PROMPTER_PROMPT,
+      injectionAfterSystemPrompt: "",
+      injectionAfterLastMessage: "",
       params: { ...DEFAULT_ROLE_PARAMS.imagePrompter },
     },
     titleGenerator: {
       systemPrompt: DEFAULT_TITLE_PROMPT,
+      injectionAfterSystemPrompt: "",
+      injectionAfterLastMessage: "",
       params: { ...DEFAULT_ROLE_PARAMS.titleGenerator },
     },
   };

@@ -13,7 +13,7 @@ import {
   saveDraftChat,
   saveNovelChat,
 } from "@/lib/storage/chats";
-import { buildPlannerMessages } from "@/lib/ai/prompts";
+import { buildPlannerMessages, roleInjections } from "@/lib/ai/prompts";
 import { openChatStream } from "@/lib/ai/client";
 import { parseOpenAIStream, sseResponse } from "@/lib/ai/sse";
 import { acquire, release } from "@/lib/ai/active";
@@ -196,6 +196,7 @@ export async function POST(request: Request) {
         contextHistory,
         messageText,
         plannerRole.systemPrompt,
+        roleInjections(plannerRole),
       );
       const plannerRoute = resolveModelRoute(global, bookConfig.models.planner);
       const model = plannerRoute.model;

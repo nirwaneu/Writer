@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { assertSameOrigin, errorResponse, jsonOk, parseBody } from "@/lib/api";
 import { generateTitleText } from "@/lib/ai/title";
+import { roleInjections } from "@/lib/ai/prompts";
 import { resolveModelRoute } from "@/lib/ai/routing";
 import { AppError, NotFoundError } from "@/lib/errors";
 import { requireConfig } from "@/lib/storage/config";
@@ -81,6 +82,7 @@ export async function POST(request: Request) {
       context,
       systemPrompt: role.systemPrompt,
       params: role.params,
+      injections: roleInjections(role),
     });
     const title = cleanTitle(content);
     if (!title) {

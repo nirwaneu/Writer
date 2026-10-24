@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { assertSameOrigin, errorResponse, jsonOk, parseBody } from "@/lib/api";
 import { generateTitleText } from "@/lib/ai/title";
+import { roleInjections } from "@/lib/ai/prompts";
 import { resolveModelRoute } from "@/lib/ai/routing";
 import { publishDraft } from "@/lib/storage/novels";
 import { requireConfig } from "@/lib/storage/config";
@@ -53,6 +54,7 @@ async function generateTitle(draftId: string, premise: string): Promise<string> 
       context: premise,
       systemPrompt: role.systemPrompt,
       params: role.params,
+      injections: roleInjections(role),
     });
     return cleanTitle(content) || fallbackTitle(premise);
   } catch {

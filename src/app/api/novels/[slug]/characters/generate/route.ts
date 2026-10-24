@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { assertSameOrigin, errorResponse, jsonOk } from "@/lib/api";
 import { chatCompletion } from "@/lib/ai/client";
-import { buildCharacterExtractionMessages } from "@/lib/ai/prompts";
+import { buildCharacterExtractionMessages, roleInjections } from "@/lib/ai/prompts";
 import { resolveModelRoute } from "@/lib/ai/routing";
 import { AppError } from "@/lib/errors";
 import { characterSchema } from "@/lib/schemas";
@@ -67,7 +67,11 @@ export async function POST(request: Request, { params }: Params) {
       baseUrl: route.provider.baseUrl,
       apiKey: route.provider.apiKey,
       model: route.model,
-      messages: buildCharacterExtractionMessages(outline, role.systemPrompt),
+      messages: buildCharacterExtractionMessages(
+        outline,
+        role.systemPrompt,
+        roleInjections(role),
+      ),
       params: role.params,
       maxTokens: 1_600,
       timeoutMs: 90_000,
