@@ -39,6 +39,7 @@ import {
 import { cn, readingTime } from "@/lib/utils";
 import {
   chapterDisplayNumber,
+  chapterDisplayTitle,
   illustrationUrl,
   pageKindLabel,
 } from "@/lib/pages";
@@ -248,7 +249,7 @@ export function ReaderView({
               </span>
             </div>
             <h1 className="paper-title mt-3 text-[2.1rem] leading-[1.08] tracking-[-0.02em] sm:text-[2.5rem]">
-              {isIllustration ? "Illustration" : chapter.title}
+              {isIllustration ? "Illustration" : chapterDisplayTitle(chapter)}
             </h1>
             <div className="paper-rule mt-2 h-px w-12" />
 

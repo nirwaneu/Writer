@@ -18,6 +18,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { LocalTime } from "@/components/relative-time";
 import { ReasoningBlock } from "@/components/chat/reasoning-block";
+import {
+  enterHint,
+  handleEnterKey,
+  useEnterBehavior,
+} from "@/lib/use-enter-behavior";
 import { cn } from "@/lib/utils";
 import type { ChatAlternative, ChatMessage } from "@/lib/schemas";
 import type { ChatFailure } from "@/lib/chat-types";
@@ -67,6 +72,7 @@ export function ChatThread({
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const atBottomRef = useRef(true);
+  const { behavior } = useEnterBehavior();
 
   useEffect(() => {
     const element = textareaRef.current;
@@ -98,10 +104,13 @@ export function ChatThread({
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      submit();
-    }
+    handleEnterKey({
+      behavior,
+      event,
+      value: draft,
+      onChange: setDraft,
+      onSubmit: submit,
+    });
   }
 
   const emptyState = !messages.length && !streaming;
@@ -228,10 +237,7 @@ export function ChatThread({
             </div>
           </div>
           <div className="mt-1.5 flex items-center justify-between gap-3 text-[10px] text-muted-foreground">
-            <span>
-              <kbd className="font-mono">Enter</kbd> to send ·{" "}
-              <kbd className="font-mono">Shift + Enter</kbd> for a new line
-            </span>
+            <span>{enterHint(behavior)}</span>
             {streaming ? <span className="text-[#f2c477]">Generating…</span> : null}
           </div>
           {footer}
@@ -281,6 +287,7 @@ function MessageBlock({
 
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(message.content);
+  const { behavior } = useEnterBehavior();
 
   async function saveEdit() {
     if (!onEditMessage) return;
@@ -288,6 +295,16 @@ function MessageBlock({
     if (!trimmed) return;
     await onEditMessage(message, trimmed);
     setEditing(false);
+  }
+
+  function handleEditKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    handleEnterKey({
+      behavior,
+      event,
+      value: editText,
+      onChange: setEditText,
+      onSubmit: () => void saveEdit(),
+    });
   }
 
   const canSwitch = alternatives.length > 1 && Boolean(onSwitchVersion);
@@ -324,6 +341,7 @@ function MessageBlock({
             <textarea
               value={editText}
               onChange={(event) => setEditText(event.target.value)}
+              onKeyDown={handleEditKeyDown}
               rows={3}
               className="w-full resize-none rounded-md border border-input bg-[#0c1218] px-3 py-2 text-[13px] leading-relaxed text-foreground outline-none focus:border-[#5b4a2c] focus:ring-2 focus:ring-ring/30"
               autoFocus

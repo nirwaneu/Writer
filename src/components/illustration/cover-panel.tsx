@@ -10,6 +10,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { illustrationUrl } from "@/lib/pages";
 import { useAvailableModels } from "@/lib/use-available-models";
+import { handleEnterKey, useEnterBehavior } from "@/lib/use-enter-behavior";
 import type { Illustration, ImageAspectRatio, Outline } from "@/lib/schemas";
 
 const ASPECTS: Array<{ value: ImageAspectRatio; label: string; hint: string }> = [
@@ -43,6 +44,7 @@ export function CoverPanel({
   const [writingPrompt, setWritingPrompt] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { options, loading } = useAvailableModels();
+  const { behavior } = useEnterBehavior();
 
   const providerOptions = options.filter((option) => option.providerId === providerId);
   const flaggedOptions = providerOptions.filter((option) => option.isImage);
@@ -170,6 +172,17 @@ export function CoverPanel({
           id="cover-prompt"
           value={prompt}
           onChange={(event) => setPrompt(event.target.value)}
+          onKeyDown={(event) => {
+            handleEnterKey({
+              behavior,
+              event,
+              value: prompt,
+              onChange: setPrompt,
+              onSubmit: () => {
+                if (canGenerate) void generate();
+              },
+            });
+          }}
           placeholder="Iconic literary book cover, coastal map, ink wash, warm light…"
           className="min-h-24 text-[12.5px] leading-relaxed"
           maxLength={4_000}

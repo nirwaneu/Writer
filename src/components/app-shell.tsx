@@ -3,19 +3,21 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTransition } from "react";
-import { BookOpen, LogOut, Settings2, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import { BookOpen, Keyboard, LogOut, Settings2, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { Wordmark } from "@/components/wordmark";
 import { StatusDot } from "@/components/status-dot";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useEnterBehavior } from "@/lib/use-enter-behavior";
 import { cn } from "@/lib/utils";
 
 export function AppShell({
@@ -32,6 +34,7 @@ export function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const { behavior, setBehavior } = useEnterBehavior();
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -125,6 +128,24 @@ export function AppShell({
                   Model settings
                 </Link>
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="flex items-center gap-2">
+                <Keyboard className="size-3.5" />
+                Keyboard submit
+              </DropdownMenuLabel>
+              <DropdownMenuCheckboxItem
+                checked={behavior === "send"}
+                onSelect={() => setBehavior("send")}
+              >
+                Enter sends · Shift+Enter new line
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={behavior === "newline"}
+                onSelect={() => setBehavior("newline")}
+              >
+                Enter adds line · Ctrl+Enter sends
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={logout} disabled={pending}>
                 <LogOut />
                 Sign out

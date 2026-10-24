@@ -12,6 +12,7 @@ import {
 } from "@/lib/storage/novels";
 import {
   buildChapterSummaryMessages,
+  buildChapterTitleMessages,
   buildChunkSummaryMessages,
   buildCombineSummaryMessages,
   splitForSummary,
@@ -35,6 +36,17 @@ function cleanSummary(raw: string): string {
     .replace(/^#+\s*/gm, "")
     .trim()
     .slice(0, 4_000);
+}
+
+function cleanChapterTitle(raw: string): string {
+  const firstLine = raw.split(/\r?\n/).map((line) => line.trim()).find(Boolean) ?? "";
+  return firstLine
+    .replace(/^(chapter title|title)\s*[:\-]\s*/i, "")
+    .replace(/^["'“”‘’#*\s]+|["'“”‘’#*.\s]+$/g, "")
+    .replace(/^chapter\s+\d+\s*[:\-—]\s*/i, "")
+    .replace(/\s+/g, " ")
+    .slice(0, 120)
+    .trim();
 }
 
 export async function POST(request: Request) {
@@ -130,11 +142,41 @@ export async function POST(request: Request) {
       });
     }
 
-    const next = await saveChapterSummary(input.slug, input.chapter, cleaned);
+    let chapterTitle: string | undefined;
+    try {
+      const plannerRole = bookConfig.roles.planner;
+      const plannerRoute = resolveModelRoute(global, bookConfig.models.planner);
+      const titleResult = await chatCompletion({
+        baseUrl: plannerRoute.provider.baseUrl,
+        apiKey: plannerRoute.provider.apiKey,
+        model: plannerRoute.model,
+        messages: buildChapterTitleMessages(
+          outline,
+          input.chapter,
+          text,
+          plannerRole.systemPrompt,
+        ),
+        params: plannerRole.params,
+        maxTokens: 40,
+        timeoutMs: 60_000,
+        retries: 1,
+      });
+      chapterTitle = cleanChapterTitle(titleResult.content) || undefined;
+    } catch {
+      chapterTitle = undefined;
+    }
+
+    const next = await saveChapterSummary(
+      input.slug,
+      input.chapter,
+      cleaned,
+      chapterTitle,
+    );
     const chapter = next.chapters.find((item) => item.number === input.chapter) ?? null;
 
     return jsonOk({
       summary: cleaned,
+      title: chapterTitle,
       chapter,
       outline: next,
     });

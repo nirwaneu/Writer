@@ -114,6 +114,39 @@ describe("executor prompt", () => {
       "NO_PLAN",
     );
   });
+
+  it("uses the text-chapter number and ignores illustration pages", () => {
+    const withIllustration: Outline = {
+      ...outline,
+      chapters: [
+        outline.chapters[0],
+        {
+          number: 2,
+          title: "Illustration",
+          summary: "",
+          status: "planned",
+          wordCount: 0,
+          summaryStale: false,
+          kind: "illustration",
+          updatedAt: "2026-01-02T00:00:00.000Z",
+        },
+        {
+          ...outline.chapters[1],
+          number: 3,
+          chapterNumber: 2,
+        },
+      ],
+      currentChapter: 3,
+    };
+    const messages = buildExecutorMessages(
+      withIllustration,
+      3,
+      plan,
+      roles.executor.systemPrompt,
+    );
+    expect(messages[1].content).toContain("Write Chapter 2 now.");
+    expect(messages[1].content).not.toContain("Write Chapter 3 now.");
+  });
 });
 
 describe("chapter summary prompt", () => {

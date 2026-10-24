@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   chapterDisplayNumber,
+  chapterDisplayTitle,
   illustrationUrl,
   pageKindLabel,
 } from "@/lib/pages";
@@ -43,6 +44,14 @@ describe("page helpers", () => {
     expect(chapterDisplayNumber(chapter)).toBe(2);
     expect(pageKindLabel(chapter)).toBe("Chapter 2");
     expect(pageKindLabel(illustration)).toBe("Illustration");
+  });
+
+  it("keeps the number as a subtitle when no custom title exists", () => {
+    expect(chapterDisplayTitle(chapter)).toBe("Untitled Chapter");
+    expect(chapterDisplayTitle({ ...chapter, title: "The Warm Ink" })).toBe(
+      "The Warm Ink",
+    );
+    expect(chapterDisplayTitle(illustration)).toBe("Illustration");
   });
 
   it("builds a stable local illustration URL", () => {

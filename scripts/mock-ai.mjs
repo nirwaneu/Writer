@@ -90,6 +90,7 @@ function responseFor(messages) {
 
   if (all.includes("return only a json array")) return charactersJson();
   if (all.includes("expert prompt engineer")) return imagePromptText();
+  if (all.includes("give this chapter a short")) return "The Warm Ink";
   if (all.includes("you name novels")) return titleText();
   if (all.includes("convert an author's brainstorming conversation into the novel's premise")) {
     return premiseText();

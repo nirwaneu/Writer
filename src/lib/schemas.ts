@@ -248,6 +248,7 @@ export type NovelListItem = {
   status: Outline["status"];
   chapterCount: number;
   currentChapter: number;
+  currentChapterNumber: number;
   wordCount: number;
   coverImagePath?: string;
   updatedAt: string;

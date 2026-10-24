@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { chapterDisplayNumber } from "@/lib/pages";
+import { chapterDisplayNumber, chapterDisplayTitle } from "@/lib/pages";
 import { DeletePageButton } from "@/components/workspace/delete-page-button";
 import type { Chapter, Outline } from "@/lib/schemas";
 
@@ -91,7 +91,7 @@ export function OutlineView({
                     {illustration ? "Plate" : `Ch. ${chapterDisplayNumber(chapter)}`}
                   </span>
                   <span className="text-[12.5px] font-medium text-foreground/90">
-                    {illustration ? "Illustration page" : chapter.title}
+                    {illustration ? "Illustration page" : chapterDisplayTitle(chapter)}
                   </span>
                   {chapter.summaryStale ? (
                     <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#f2937f]">

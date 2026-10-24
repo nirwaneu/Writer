@@ -45,8 +45,9 @@ const now = () => new Date().toISOString();
 
 type BookRow = typeof books.$inferSelect;
 
-function chapterFromRow(row: DbChapter): Chapter {
+function chapterFromRow(row: DbChapter, dynamicChapterNumber?: number): Chapter {
   const hasImage = Boolean(row.imagePath && row.imageProviderId && row.imageModel);
+  const chapterNumber = dynamicChapterNumber ?? row.chapterNumber ?? undefined;
   return {
     number: row.number,
     title: row.title,
@@ -57,7 +58,7 @@ function chapterFromRow(row: DbChapter): Chapter {
     updatedAt: row.updatedAt,
     ...(row.summaryUpdatedAt ? { summaryUpdatedAt: row.summaryUpdatedAt } : {}),
     kind: row.kind,
-    ...(row.chapterNumber ? { chapterNumber: row.chapterNumber } : {}),
+    ...(chapterNumber ? { chapterNumber } : {}),
     ...(hasImage
       ? {
           image: {
@@ -77,14 +78,7 @@ function chapterFromRow(row: DbChapter): Chapter {
 function nextChapterNumber(
   pages: Array<{ number: number; chapterNumber: number | null; kind: ChapterKind }>,
 ): number {
-  return (
-    pages
-      .filter((page) => page.kind === "chapter")
-      .reduce(
-        (max, page) => Math.max(max, page.chapterNumber ?? page.number),
-        0,
-      ) + 1
-  );
+  return pages.filter((page) => page.kind === "chapter").length + 1;
 }
 
 function chapterInsert(
@@ -134,13 +128,17 @@ async function getDraftRow(id: string): Promise<BookRow> {
 
 async function loadChapters(bookId: string): Promise<Chapter[]> {
   const db = await getDb();
-  return db
+  const rows = db
     .select()
     .from(chaptersTable)
     .where(eq(chaptersTable.bookId, bookId))
     .orderBy(chaptersTable.number)
-    .all()
-    .map(chapterFromRow);
+    .all();
+  let chapterCount = 0;
+  return rows.map((row) => {
+    if (row.kind === "chapter") chapterCount += 1;
+    return chapterFromRow(row, row.kind === "chapter" ? chapterCount : undefined);
+  });
 }
 
 async function loadCharacters(bookId: string): Promise<Character[]> {
@@ -209,6 +207,7 @@ function toListItem(row: {
   premise: string;
   status: Outline["status"];
   currentChapter: number;
+  currentChapterNumber: number;
   wordCount: number | null;
   chapterCount: number | null;
   coverImagePath: string | null;
@@ -222,6 +221,7 @@ function toListItem(row: {
     status: row.status,
     chapterCount: Number(row.chapterCount ?? 0),
     currentChapter: row.currentChapter,
+    currentChapterNumber: Number(row.currentChapterNumber ?? row.currentChapter),
     wordCount: Number(row.wordCount ?? 0),
     ...(row.coverImagePath ? { coverImagePath: row.coverImagePath } : {}),
     updatedAt: row.updatedAt,
@@ -242,6 +242,7 @@ export async function listNovels(): Promise<NovelListItem[]> {
       createdAt: books.createdAt,
       updatedAt: books.updatedAt,
       chapterCount: sql<number>`(select count(*) from chapters where chapters.book_id = ${books.id} and chapters.kind = 'chapter')`,
+      currentChapterNumber: sql<number>`(select count(*) from chapters where chapters.book_id = ${books.id} and chapters.kind = 'chapter' and chapters.number <= ${books.currentChapter})`,
       wordCount: sql<number>`(select coalesce(sum(word_count), 0) from chapters where chapters.book_id = ${books.id})`,
     })
     .from(books)
@@ -583,7 +584,8 @@ export async function saveChapterContent(
       tx.update(books).set({ updatedAt: timestamp }).where(eq(books.id, row.id)).run();
     });
 
-    return chapter;
+    const saved = await loadChapters(row.id);
+    return saved.find((item) => item.number === number) ?? chapter;
   });
 }
 
@@ -591,6 +593,7 @@ export async function saveChapterSummary(
   slug: string,
   number: number,
   summary: string,
+  title?: string,
 ): Promise<Outline> {
   assertChapterNumber(number);
   const row = await getBookRowBySlug(slug);
@@ -603,6 +606,7 @@ export async function saveChapterSummary(
         status: "summarized",
         summaryStale: false,
         summaryUpdatedAt: timestamp,
+        ...(title?.trim() ? { title: title.trim().slice(0, 200) } : {}),
       })
       .where(
         and(
@@ -686,10 +690,22 @@ export async function advanceChapter(slug: string, from: number): Promise<Outlin
       })
       .from(chaptersTable)
       .where(eq(chaptersTable.bookId, row.id))
+      .orderBy(chaptersTable.number)
       .all();
+    const existingNext = pages.find(
+      (page) => page.kind === "chapter" && page.number > from,
+    );
+    const timestamp = now();
+    if (existingNext) {
+      db.update(books)
+        .set({ currentChapter: existingNext.number, status: "active", updatedAt: timestamp })
+        .where(eq(books.id, row.id))
+        .run();
+      return getNovel(slug);
+    }
+
     const nextNumber = Math.max(from, ...pages.map((page) => page.number)) + 1;
     const logicalChapterNumber = nextChapterNumber(pages);
-    const timestamp = now();
     db.transaction((tx) => {
       tx.insert(chaptersTable)
         .values(

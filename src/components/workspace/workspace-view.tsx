@@ -57,7 +57,7 @@ import { chapterStatusMeta } from "@/lib/chapter-status";
 import { usePlannerStream } from "@/lib/use-chat-stream";
 import { useExecutorStream } from "@/lib/streams/use-executor-stream";
 import { modelDisplayId } from "@/lib/ai/routing";
-import { chapterDisplayNumber, pageKindLabel } from "@/lib/pages";
+import { chapterDisplayNumber, chapterDisplayTitle, pageKindLabel } from "@/lib/pages";
 import {
   readingPageWidth,
   readingPaperStyle,
@@ -414,7 +414,7 @@ function WorkspaceSession({
       }
       setOutline(payload.outline);
       setSummaryState("saved");
-      toast.success("Chapter summary saved to the Story Vault.");
+      toast.success("Chapter summary and title saved.");
     } catch {
       setSummaryState("failed");
       setSummaryError("Could not reach the app server while summarizing.");
@@ -489,8 +489,7 @@ function WorkspaceSession({
         setChapterUpdatedAt(entry.chapter.updatedAt);
         applyChapter(entry.chapter);
         executor.reset();
-        toast.success(`Chapter ${chapterNumber} drafted.`);
-        void runSummary();
+        toast.success(`Chapter ${displayNumber} drafted.`);
       } else {
         executor.reset();
         void refreshChapter();
@@ -507,10 +506,10 @@ function WorkspaceSession({
   }, [
     applyChapter,
     chapterNumber,
+    displayNumber,
     executing,
     executor,
     refreshChapter,
-    runSummary,
   ]);
 
   const stopExecution = useCallback(() => {
@@ -570,12 +569,25 @@ function WorkspaceSession({
         `/api/novels/${slug}/chapters/${chapterNumber}/advance`,
         { method: "POST" },
       );
-      const payload = (await response.json()) as { error?: { message?: string } };
-      if (!response.ok) {
+      const payload = (await response.json()) as {
+        outline?: Outline;
+        error?: { message?: string };
+      };
+      if (!response.ok || !payload.outline) {
         toast.error(payload.error?.message || "Could not open the next chapter.");
         return;
       }
-      router.push(`/novels/${slug}/write?chapter=${chapterNumber + 1}`);
+      const nextPage =
+        payload.outline.chapters
+          .filter(
+            (item) => item.kind === "chapter" && item.number > chapterNumber,
+          )
+          .sort((a, b) => a.number - b.number)[0] ?? null;
+      router.push(
+        `/novels/${slug}/write?chapter=${
+          nextPage?.number ?? payload.outline.currentChapter
+        }`,
+      );
     } catch {
       toast.error("Could not reach the app server.");
     } finally {
@@ -728,12 +740,15 @@ function WorkspaceSession({
               ? `Saved ${formatRelative(lastSavedAt)}`
               : "Saved";
 
-  const title = isIllustration
-    ? "Illustration"
-    : chapter.title === `Chapter ${chapter.number}`
-      ? `Chapter ${displayNumber}`
-      : chapter.title;
+  const title = isIllustration ? "Illustration" : chapterDisplayTitle(chapter);
   const pageLabel = pageKindLabel(chapter);
+  const nextTextPage =
+    outline.chapters
+      .filter((item) => item.kind === "chapter" && item.number > chapterNumber)
+      .sort((a, b) => a.number - b.number)[0] ?? null;
+  const nextChapterLabel = nextTextPage
+    ? chapterDisplayNumber(nextTextPage)
+    : displayNumber + 1;
 
   const writePane = (
     <div className="relative flex h-full min-h-0 flex-col">
@@ -1060,7 +1075,7 @@ function WorkspaceSession({
           </TabsList>
         </Tabs>
         <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
-          Ch. {chapterNumber}
+          Ch. {displayNumber}
         </span>
       </div>
 
@@ -1088,7 +1103,7 @@ function WorkspaceSession({
           empty={
             <div>
               <h2 className="font-serif text-[1.35rem] leading-tight tracking-[-0.01em]">
-                Plan chapter {chapterNumber}.
+                Plan chapter {displayNumber}.
               </h2>
               <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">
                 Decide what changes, who wants what, and what stays unresolved. The Executor
@@ -1111,7 +1126,7 @@ function WorkspaceSession({
                 <>
                   <Button className="w-full" onClick={() => void continueChapter()} disabled={advancing}>
                     {advancing ? <Loader2 className="animate-spin" /> : <ArrowRight />}
-                    {advancing ? "Opening…" : `Continue to chapter ${chapterNumber + 1}`}
+                    {advancing ? "Opening…" : `Continue to chapter ${nextChapterLabel}`}
                   </Button>
                   <Button
                     variant="ghost"
@@ -1185,7 +1200,7 @@ function WorkspaceSession({
           <div className="mb-4 border-b border-border pb-4">
             <div className="flex items-center justify-between gap-2">
               <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-[#f2c477]">
-                Chapter {chapterNumber}
+                Chapter {displayNumber}
               </span>
               <Badge
                 variant={

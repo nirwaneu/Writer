@@ -7,6 +7,7 @@ import { AppError, NotFoundError } from "@/lib/errors";
 import { requireConfig } from "@/lib/storage/config";
 import { getBookConfig } from "@/lib/storage/book-config";
 import { getNovel } from "@/lib/storage/novels";
+import { chapterDisplayTitle } from "@/lib/pages";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -86,7 +87,7 @@ export async function POST(request: Request) {
         title: outline.title,
         premise: outline.premise,
         summary: previous.summary,
-        previousTitle: previous.title,
+        previousTitle: chapterDisplayTitle(previous),
       };
     }
 

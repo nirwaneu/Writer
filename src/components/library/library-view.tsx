@@ -237,7 +237,7 @@ function FeaturedBook({ novel }: { novel: NovelListItem }) {
           <dl className="mt-5 flex flex-wrap gap-x-7 gap-y-2 text-[11.5px]">
             <div className="flex items-baseline gap-1.5">
               <dt className="text-muted-foreground">Chapter</dt>
-              <dd className="tabular text-foreground/90">{novel.currentChapter}</dd>
+              <dd className="tabular text-foreground/90">{novel.currentChapterNumber}</dd>
             </div>
             <div className="flex items-baseline gap-1.5">
               <dt className="text-muted-foreground">Words</dt>

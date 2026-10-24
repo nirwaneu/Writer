@@ -1,5 +1,6 @@
 import type { ChatMessage, Outline } from "@/lib/schemas";
 import type { ChatInputMessage } from "@/lib/ai/client";
+import { chapterDisplayNumber, chapterDisplayTitle } from "@/lib/pages";
 
 const MAX_VAULT_CHARS = 30_000;
 const MAX_PLAN_CHARS = 18_000;
@@ -42,7 +43,7 @@ function chapterSummaries(outline: Outline, upToExclusive: number): string {
   return selected
     .map(
       (chapter) =>
-        `Chapter ${chapter.number} — ${chapter.title}${chapter.summaryStale ? " (summary may be stale)" : ""}\n${trim(chapter.summary, 2_400)}`,
+        `Chapter ${chapterDisplayNumber(chapter)} — ${chapterDisplayTitle(chapter)}${chapter.summaryStale ? " (summary may be stale)" : ""}\n${trim(chapter.summary, 2_400)}`,
     )
     .join("\n\n");
 }
@@ -102,12 +103,13 @@ export function buildPlannerMessages(
   rolePrompt: string,
 ): ChatInputMessage[] {
   const chapterEntry = outline.chapters.find((item) => item.number === chapter);
+  const displayNumber = chapterEntry ? chapterDisplayNumber(chapterEntry) : chapter;
   const context = [
     "[STORY CONTEXT]",
     vaultContext(outline, chapter),
     "",
     "[CURRENT CHAPTER]",
-    `Chapter ${chapter}${chapterEntry ? ` — ${chapterEntry.title}` : ""}`,
+    `Chapter ${displayNumber}${chapterEntry ? ` — ${chapterDisplayTitle(chapterEntry)}` : ""}`,
     "This chapter has not been drafted yet." +
       (chapterEntry?.summary
         ? `\nAn earlier summary exists and may be stale:\n${trim(chapterEntry.summary, 1_200)}`
@@ -137,6 +139,7 @@ export function buildExecutorMessages(
   rolePrompt: string,
 ): ChatInputMessage[] {
   const chapterEntry = outline.chapters.find((item) => item.number === chapter);
+  const displayNumber = chapterEntry ? chapterDisplayNumber(chapterEntry) : chapter;
   const plan = transcript(history, MAX_PLAN_CHARS);
   if (!plan.trim()) {
     throw new Error("NO_PLAN");
@@ -147,12 +150,12 @@ export function buildExecutorMessages(
     vaultContext(outline, chapter),
     "",
     "[CHAPTER TO WRITE]",
-    `Chapter ${chapter}${chapterEntry ? ` — ${chapterEntry.title}` : ""}`,
+    `Chapter ${displayNumber}${chapterEntry ? ` — ${chapterDisplayTitle(chapterEntry)}` : ""}`,
     "",
     "[THE AUTHOR'S PLAN]",
     plan,
     "",
-    `[TASK] Write Chapter ${chapter} now. Output only the chapter prose in Markdown; do not include a chapter title heading, notes, or a summary.`,
+    `[TASK] Write Chapter ${displayNumber} now. Output only the chapter prose in Markdown; do not include a chapter title heading, notes, or a summary.`,
   ].join("\n");
 
   return [systemOnly(rolePrompt), userMessage(content)];
@@ -265,6 +268,29 @@ export function buildImagePromptMessages(
   return [systemOnly(rolePrompt), userMessage(subject.join("\n"))];
 }
 
+export function buildChapterTitleMessages(
+  outline: Outline,
+  chapter: number,
+  chapterText: string,
+  rolePrompt: string,
+): ChatInputMessage[] {
+  const entry = outline.chapters.find((item) => item.number === chapter);
+  const display = entry ? chapterDisplayNumber(entry) : chapter;
+  return [
+    systemOnly(rolePrompt),
+    userMessage([
+      "[TASK]",
+      "Give this chapter a short, evocative title. Two to seven words. No chapter number, no subtitle, no quotation marks, no explanation.",
+      "Base it on what actually happens in the chapter. Prefer a concrete image or a charged phrase over a generic label.",
+      "Output only the title.",
+      "",
+      `[NOVEL] ${outline.title}`,
+      `[CHAPTER ${display}]`,
+      trim(chapterText, 24_000),
+    ].join("\n")),
+  ];
+}
+
 export function buildChapterSummaryMessages(
   outline: Outline,
   chapter: number,
@@ -297,6 +323,8 @@ export function buildChunkSummaryMessages(
   total: number,
   rolePrompt: string,
 ): ChatInputMessage[] {
+  const entry = outline.chapters.find((item) => item.number === chapter);
+  const display = entry ? chapterDisplayNumber(entry) : chapter;
   return [
     systemOnly(rolePrompt),
     userMessage([
@@ -304,7 +332,7 @@ export function buildChunkSummaryMessages(
       "Summarize this portion of a long chapter for continuity.",
       "Write 90–140 words in present tense. Record events, decisions, revelations, locations, and unresolved threads. Do not praise or analyze. Output only the summary.",
       "",
-      `[CHAPTER ${chapter}, PART ${index} OF ${total}]`,
+      `[CHAPTER ${display}, PART ${index} OF ${total}]`,
       trim(chunk, 40_000),
       "",
       `NOVEL: ${outline.title}`,
@@ -318,6 +346,8 @@ export function buildCombineSummaryMessages(
   partials: string[],
   rolePrompt: string,
 ): ChatInputMessage[] {
+  const entry = outline.chapters.find((item) => item.number === chapter);
+  const display = entry ? chapterDisplayNumber(entry) : chapter;
   return [
     systemOnly(rolePrompt),
     userMessage([
@@ -325,7 +355,7 @@ export function buildCombineSummaryMessages(
       "Combine these ordered partial summaries into one chapter summary.",
       "Write 120–180 words in present tense, preserving cause and effect. Do not add facts. No headings or bullets. Output only the summary.",
       "",
-      `[CHAPTER ${chapter} PARTIAL SUMMARIES]`,
+      `[CHAPTER ${display} PARTIAL SUMMARIES]`,
       ...partials.map((part, index) => `PART ${index + 1}:\n${part}`),
       "",
       `NOVEL: ${outline.title}`,

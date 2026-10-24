@@ -55,7 +55,7 @@ import { AddPageMenu } from "@/components/workspace/add-page-menu";
 import { CharacterEditorDialog } from "@/components/book/character-editor-dialog";
 import { DeletePageButton } from "@/components/workspace/delete-page-button";
 import { chapterStatusMeta } from "@/lib/chapter-status";
-import { chapterDisplayNumber, illustrationUrl } from "@/lib/pages";
+import { chapterDisplayNumber, chapterDisplayTitle, illustrationUrl } from "@/lib/pages";
 import { formatDate } from "@/lib/utils";
 import type { Chapter, Character, Outline } from "@/lib/schemas";
 
@@ -88,6 +88,11 @@ export function BookDetailView({
   const [charactersError, setCharactersError] = useState<string | null>(null);
   const [deletingPageNumber, setDeletingPageNumber] = useState<number | null>(null);
   const complete = outline.status === "complete";
+  const currentPage =
+    outline.chapters.find((item) => item.number === outline.currentChapter) ?? null;
+  const currentChapterNumber = currentPage
+    ? chapterDisplayNumber(currentPage)
+    : outline.currentChapter;
   const displayCharacters = characters ?? outline.characters;
 
   async function generateCharacters() {
@@ -321,7 +326,7 @@ export function BookDetailView({
             <dl className="mt-6 grid max-w-xl grid-cols-2 gap-x-6 gap-y-3 border-t border-border pt-4 sm:grid-cols-4">
               <Stat label="Words" value={numberFormat.format(wordCount)} />
               <Stat label="Chapters" value={String(chapterCount)} />
-              <Stat label="Current" value={String(outline.currentChapter)} />
+              <Stat label="Current" value={String(currentChapterNumber)} />
               <Stat
                 label="In vault"
                 value={`${outline.chapters.filter((chapter) => chapter.summary && !chapter.summaryStale).length}/${chapterCount}`}
@@ -376,7 +381,7 @@ export function BookDetailView({
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-[13px] font-medium text-foreground group-hover:text-[#f4c477]">
-                            {illustration ? "Illustration page" : chapter.title}
+                            {illustration ? "Illustration page" : chapterDisplayTitle(chapter)}
                           </h3>
                           <Badge variant={illustration ? "amber" : meta.tone === "success" ? "success" : meta.tone === "danger" ? "danger" : meta.tone === "amber" ? "amber" : "default"}>
                             {illustration

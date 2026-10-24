@@ -62,8 +62,10 @@ try {
   await page.getByRole("button", { name: "Rewrite this chapter" }).click();
   await page.getByRole("button", { name: "Execute and replace" }).click();
   await page.getByText("The Executor is writing this chapter.").waitFor({ timeout: 20000 });
-  await page.getByText("Chapter summary saved to the Story Vault.").waitFor({ timeout: 60000 });
-  await page.getByRole("button", { name: "Continue to chapter 3" }).click();
+  await page.getByText("Chapter 2 drafted.").waitFor({ timeout: 60000 });
+  await page.getByRole("button", { name: "Generate summary" }).first().click();
+  await page.getByText("Chapter summary and title saved.").waitFor({ timeout: 60000 });
+  await page.getByRole("button", { name: /Continue to chapter/ }).click();
   await page.waitForURL(/chapter=3/, { timeout: 20000 });
   console.log("   advanced to chapter 3");
   await page.screenshot({ path: ".impeccable/review/workspace-chapter3.png" });

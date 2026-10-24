@@ -14,6 +14,12 @@ export function pageKindLabel(chapter: Chapter): string {
     : `Chapter ${chapterDisplayNumber(chapter)}`;
 }
 
+export function chapterDisplayTitle(chapter: Chapter): string {
+  if (chapter.kind === "illustration") return "Illustration";
+  if (/^Chapter\s+\d+$/i.test(chapter.title.trim())) return "Untitled Chapter";
+  return chapter.title;
+}
+
 export function illustrationFilename(imagePath: string): string {
   const parts = imagePath.split(/[\\/]/);
   return parts[parts.length - 1] ?? imagePath;

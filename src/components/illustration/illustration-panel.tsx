@@ -9,6 +9,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { illustrationUrl } from "@/lib/pages";
 import { useAvailableModels } from "@/lib/use-available-models";
+import { handleEnterKey, useEnterBehavior } from "@/lib/use-enter-behavior";
 import type { Chapter, ImageAspectRatio, Outline } from "@/lib/schemas";
 
 const ASPECTS: Array<{ value: ImageAspectRatio; label: string; hint: string }> = [
@@ -46,6 +47,7 @@ export function IllustrationPanel({
   const [writingPrompt, setWritingPrompt] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { options, loading } = useAvailableModels();
+  const { behavior } = useEnterBehavior();
 
   const providerOptions = options.filter((option) => option.providerId === providerId);
   const flaggedOptions = providerOptions.filter((option) => option.isImage);
@@ -192,6 +194,17 @@ export function IllustrationPanel({
             id={`illustration-prompt-${pageNumber}`}
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
+            onKeyDown={(event) => {
+              handleEnterKey({
+                behavior,
+                event,
+                value: prompt,
+                onChange: setPrompt,
+                onSubmit: () => {
+                  if (canGenerate) void generate();
+                },
+              });
+            }}
             placeholder="A quiet coastal map room at dusk, ink wash, warm lamplight, painterly book illustration…"
             className="min-h-28 text-[12.5px] leading-relaxed"
             maxLength={4_000}

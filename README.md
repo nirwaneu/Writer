@@ -95,8 +95,8 @@ Writes are transactional in SQLite (WAL mode), and Markdown writes remain atomic
 2. **Premise done** sends the chat to the Summarizer, writes `premise` and an auto-generated title, then opens Chapter 1.
 3. In the workspace, the Planner chat is isolated per chapter in SQLite.
 4. **Execute** sends Story Vault context + that chapter's chat to the Executor and streams Markdown into `chapters/chapter_N.md`.
-5. The client automatically calls the Summarizer. Its summary is written to the chapter row with status `summarized`.
-6. **Continue** advances `currentChapter` and opens the next isolated chat.
+5. The chapter is saved. Summarization is **manual**: press **Generate summary** when the draft is final. That action also asks the Planner for a short chapter title and updates the title in SQLite and the UI.
+6. **Continue** advances to the next text chapter and opens the next isolated chat. Illustration pages never consume chapter numbers.
 
 The Executor never receives the full manuscript. It receives the premise, characters, selected prior chapter summaries, and the current chapter plan.
 
@@ -134,6 +134,15 @@ The Executor and Reading Mode share a compact comfort toolbar:
 
 Theme, text size, typeface, and page width live in browser `localStorage` under `vibedraft:reading-preferences`. They never enter the SQLite database.
 
+## Keyboard submit
+
+The account menu in the header switches the global prompt behavior:
+
+- **Enter sends** with **Shift+Enter** for a new line.
+- **Enter adds a line** with **Ctrl/Cmd+Enter** to send.
+
+The choice is stored in browser `localStorage` under `vibedraft:enter-behavior` and applies to Planner chat, prompt editing, illustration prompts, and cover prompts.
+
 While the Executor streams, the page follows only when you are already at the bottom. Scroll up and the viewport locks; generation continues below. A **Scroll to bottom** control appears while the stream is active, with a live indicator.
 
 ## Reasoning and chat versions
@@ -152,8 +161,9 @@ While the Executor streams, the page follows only when you are already at the bo
 | Planner stream dies | Partial reply is saved as `failed` and excluded from future context; retry reuses the same user message id. |
 | Executor dies mid-stream | Partial chapter is saved to disk; the editor reloads the saved partial and offers retry. |
 | Executor returns nothing | Existing chapter text is left untouched. |
-| Summarizer fails | Chapter stays saved; chapter status becomes `summary_failed`; UI offers retry or explicit skip. Continue is blocked until one of those happens. |
-| Title generation fails | Premise still publishes; book is named `Untitled Novel` and can be renamed. |
+| Summarizer fails | Chapter stays saved; chapter status becomes `summary_failed`; retry manually or explicitly skip. Continue is blocked until one of those happens. |
+| Chapter title generation fails | The summary still saves; the existing chapter title is kept. |
+| Book title generation fails | The premise still publishes; the title falls back to a short phrase from the premise. |
 | Premise summary fails | Draft is preserved; retry or write the premise manually. |
 | Two tabs edit one chapter | Server rejects stale writes with `409`; UI offers reload or explicit overwrite. |
 | Provider rate limit / 5xx | Non-streaming calls retry with backoff; streaming calls surface a retryable error. |
