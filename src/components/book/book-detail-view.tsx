@@ -56,6 +56,7 @@ import { BookCover } from "@/components/library/book-cover";
 import { RelativeTime } from "@/components/relative-time";
 import { AddPageMenu } from "@/components/workspace/add-page-menu";
 import { CharacterEditorDialog } from "@/components/book/character-editor-dialog";
+import { ExportBackupDialog } from "@/components/book/export-backup-dialog";
 import { DeletePageButton } from "@/components/workspace/delete-page-button";
 import { chapterStatusMeta } from "@/lib/chapter-status";
 import { chapterDisplayNumber, chapterDisplayTitle, illustrationUrl } from "@/lib/pages";
@@ -91,6 +92,7 @@ export function BookDetailView({
   const [charactersError, setCharactersError] = useState<string | null>(null);
   const [deletingPageNumber, setDeletingPageNumber] = useState<number | null>(null);
   const [generatingTitle, setGeneratingTitle] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const complete = outline.status === "complete";
   const currentPage =
     outline.chapters.find((item) => item.number === outline.currentChapter) ?? null;
@@ -322,6 +324,10 @@ export function BookDetailView({
                 <DropdownMenuItem onSelect={() => void setArchived(!outline.archived)}>
                   {outline.archived ? <ArchiveRestore /> : <Archive />}
                   {outline.archived ? "Restore to shelf" : "Move to archive"}
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setExportOpen(true)}>
+                  <Download />
+                  Export book backup
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
@@ -649,6 +655,8 @@ export function BookDetailView({
           onSave={(next) => void saveCharacters(next)}
         />
       ) : null}
+
+      <ExportBackupDialog open={exportOpen} onOpenChange={setExportOpen} slug={slug} />
     </div>
   );
 }

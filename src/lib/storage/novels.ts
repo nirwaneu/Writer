@@ -289,7 +289,7 @@ export async function getNovelDetail(slug: string): Promise<NovelDetail> {
   };
 }
 
-async function uniqueSlug(title: string): Promise<string> {
+export async function uniqueSlug(title: string): Promise<string> {
   const db = await getDb();
   const base =
     title

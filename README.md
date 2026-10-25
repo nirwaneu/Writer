@@ -111,6 +111,7 @@ The Executor never receives the full manuscript. It receives the premise, charac
 - **Pages:** add text chapters or illustration pages from the book page or workspace. Any page can be deleted with confirmation; deleting the current page moves you to a surviving page.
 - **Titles:** book details and the chapter title dialog include a **Generate Title** wand button. Regenerate as often as needed; the result is saved when you save the title.
 - **Archiving:** archive books from the shelf row menu or book details. The shelf shows active books by default; the **Archived** toggle reveals archived books with **Restore** and **Permanently delete** actions. Permanent delete removes the SQLite row and the book folder.
+- **Backup & restore:** **Export backup** in the book actions or book details downloads a validated JSON snapshot of metadata, outline, model/preset selections, chapters, manuscript text, characters, and chat history. Image assets are excluded by design. **Import book** in the Library restores a backup with new book IDs and remapped chapter/chat relations.
 - **Backwards compatibility:** legacy books and drafts imported without local settings resolve to the base/default preset and the global default models at call time. Saving in Book settings writes local settings to the book row.
 - **Payloads:** every AI call reads the book's config immediately before sending. The role's system prompt is the first message; the app appends the Story Vault/task block. Custom parameters are sent as `temperature`, `top_p`, `top_k`, `frequency_penalty`, and `presence_penalty`. `top_k` is omitted when set to 0 for provider compatibility. `reasoning_effort` is sent only when the optional field is non-empty.
 - **Model choice:** connections are global and can span multiple providers. Each role stores a provider-scoped model value, so the Planner, Executor, Summarizer, and Image Prompter can use models from different providers, per book.
@@ -204,6 +205,8 @@ There are no accounts, password resets, or multi-tenant boundaries. Do not expos
 | `POST /api/presets/:id/default` | Set the default preset for new books |
 | `GET /api/models` | List models grouped by provider |
 | `POST /api/novels/:slug/pages` | Add a chapter or illustration page |
+| `GET /api/novels/:slug/backup` | Download a JSON backup of one book |
+| `POST /api/novels/import` | Validate and import a book backup |
 | `DELETE /api/novels/:slug/chapters/:n` | Delete a chapter or illustration page |
 | `PUT /api/novels/:slug/characters` | Save a manually edited character sheet |
 | `POST /api/novels/:slug/characters/generate` | Extract characters with the Planner |

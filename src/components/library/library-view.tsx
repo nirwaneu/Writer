@@ -8,10 +8,12 @@ import {
   ArchiveRestore,
   ArrowRight,
   BookOpen,
+  Download,
   MoreHorizontal,
   Plus,
   Search,
   Trash2,
+  Upload,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -37,6 +39,7 @@ import {
 import { BookCover } from "@/components/library/book-cover";
 import { RelativeTime } from "@/components/relative-time";
 import { NewBookDialog } from "@/components/books/new-book-dialog";
+import { ExportBackupDialog } from "@/components/book/export-backup-dialog";
 import { illustrationUrl } from "@/lib/pages";
 import type { ModelRoles, NovelListItem, Preset, Provider } from "@/lib/schemas";
 
@@ -63,7 +66,44 @@ export function LibraryView({
   const [filter, setFilter] = useState<Filter>("all");
   const [view, setView] = useState<"active" | "archived">("active");
   const [newOpen, setNewOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const importRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+
+  async function importBook(file: File) {
+    setImporting(true);
+    try {
+      const raw = await file.text();
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        toast.error("That file is not valid JSON.");
+        return;
+      }
+      const response = await fetch("/api/novels/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(parsed),
+      });
+      const payload = (await response.json()) as {
+        slug?: string;
+        error?: { message?: string };
+      };
+      if (!response.ok || !payload.slug) {
+        toast.error(payload.error?.message || "The book could not be imported.");
+        return;
+      }
+      setView("active");
+      toast.success("Book imported.");
+      router.refresh();
+    } catch {
+      toast.error("Could not read that backup file.");
+    } finally {
+      setImporting(false);
+    }
+  }
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -172,6 +212,30 @@ export function LibraryView({
                 Create new
               </Button>
             ) : null}
+            <input
+              ref={importRef}
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                if (file) void importBook(file);
+              }}
+            />
+            <Button
+              variant="secondary"
+              onClick={() => importRef.current?.click()}
+              disabled={importing}
+              className="shrink-0"
+            >
+              {importing ? (
+                <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              ) : (
+                <Upload />
+              )}
+              {importing ? "Importing…" : "Import book"}
+            </Button>
           </div>
         </header>
 
@@ -415,6 +479,7 @@ function BookActionsMenu({
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   async function setArchive(next: boolean) {
     setPending(true);
@@ -479,6 +544,10 @@ function BookActionsMenu({
                 <ArchiveRestore />
                 Restore to shelf
               </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setExportOpen(true)} disabled={pending}>
+                <Download />
+                Export backup
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onSelect={() => setConfirmOpen(true)}
@@ -490,10 +559,16 @@ function BookActionsMenu({
               </DropdownMenuItem>
             </>
           ) : (
-            <DropdownMenuItem onSelect={() => void setArchive(true)} disabled={pending}>
-              <Archive />
-              Move to archive
-            </DropdownMenuItem>
+            <>
+              <DropdownMenuItem onSelect={() => void setArchive(true)} disabled={pending}>
+                <Archive />
+                Move to archive
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setExportOpen(true)} disabled={pending}>
+                <Download />
+                Export backup
+              </DropdownMenuItem>
+            </>
           )}
         </DropdownMenuContent>
       </DropdownMenu>
@@ -519,6 +594,8 @@ function BookActionsMenu({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ExportBackupDialog open={exportOpen} onOpenChange={setExportOpen} slug={novel.slug} />
     </>
   );
 }
