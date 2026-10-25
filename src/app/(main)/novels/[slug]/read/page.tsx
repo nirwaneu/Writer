@@ -19,6 +19,7 @@ export default async function ReadPage({
   let outline: Outline | null = null;
   let contents: Record<number, string> = {};
   let initial = 1;
+  let hasExplicitChapter = false;
 
   try {
     const detail = await getNovelDetail(slug);
@@ -31,9 +32,12 @@ export default async function ReadPage({
     );
     contents = Object.fromEntries(entries) as Record<number, string>;
     const requested = Number(query.chapter);
+    const requestedChapter = detail.outline.chapters.find(
+      (chapter) => chapter.number === requested,
+    );
+    hasExplicitChapter = Boolean(requestedChapter);
     initial =
-      detail.outline.chapters.find((chapter) => chapter.number === requested)?.number ??
-      detail.outline.currentChapter;
+      requestedChapter?.number ?? detail.outline.chapters[0]?.number ?? 1;
   } catch (error) {
     if (isAppError(error) && error.status === 404) notFound();
     throw error;
@@ -48,6 +52,7 @@ export default async function ReadPage({
       outline={outline}
       contents={contents}
       initialChapter={initial}
+      hasExplicitChapter={hasExplicitChapter}
     />
   );
 }

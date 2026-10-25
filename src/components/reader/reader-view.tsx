@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
@@ -37,6 +37,7 @@ import { OutlineView } from "@/components/outline/outline-view";
 import { PaginatedReader } from "@/components/reader/paginated-reader";
 import { ReadingToolbar } from "@/components/reading/reading-toolbar";
 import { useReaderLayout } from "@/lib/use-reader-layout";
+import { readReadingProgress, saveReadingProgress } from "@/lib/reading-progress";
 import {
   readingPageWidth,
   readingPaperStyle,
@@ -58,18 +59,31 @@ export function ReaderView({
   outline,
   contents,
   initialChapter,
+  hasExplicitChapter,
 }: {
   slug: string;
   outline: Outline;
   contents: Record<number, string>;
   initialChapter: number;
+  hasExplicitChapter: boolean;
 }) {
   const router = useRouter();
-  const [current, setCurrent] = useState(initialChapter);
+  const [initialProgress] = useState(() =>
+    hasExplicitChapter ? null : readReadingProgress(slug),
+  );
+  const initialResolvedChapter =
+    initialProgress &&
+    outline.chapters.some((item) => item.number === initialProgress.chapter)
+      ? initialProgress.chapter
+      : initialChapter;
+  const [current, setCurrent] = useState(initialResolvedChapter);
+  const initialPage =
+    initialProgress?.chapter === initialResolvedChapter ? initialProgress.page ?? 0 : 0;
   const [outlineOpen, setOutlineOpen] = useState(false);
   const { layout, setLayout, ready } = useReaderLayout();
   const [fullscreen, setFullscreen] = useState(false);
   const readerRef = useRef<HTMLDivElement>(null);
+  const progressInitRef = useRef(false);
   const reading = useReadingPreferences();
 
   const chapter = outline.chapters.find((item) => item.number === current) ?? outline.chapters[0];
@@ -88,10 +102,40 @@ export function ReaderView({
     const target = outline.chapters.find((item) => item.number === number);
     if (!target) return;
     setCurrent(number);
+    saveReadingProgress(slug, { chapter: number, page: 0 });
     router.replace(`/novels/${slug}/read?chapter=${number}`, { scroll: false });
     window.scrollTo({ top: 0, behavior: "auto" });
     document.getElementById("reader-scroll")?.scrollTo({ top: 0, behavior: "auto" });
   }
+
+  useEffect(() => {
+    if (progressInitRef.current) return;
+    progressInitRef.current = true;
+    saveReadingProgress(slug, {
+      chapter: initialResolvedChapter,
+      page: initialPage,
+    });
+    if (!hasExplicitChapter && initialResolvedChapter !== initialChapter) {
+      router.replace(
+        `/novels/${slug}/read?chapter=${initialResolvedChapter}`,
+        { scroll: false },
+      );
+    }
+  }, [
+    hasExplicitChapter,
+    initialChapter,
+    initialPage,
+    initialResolvedChapter,
+    router,
+    slug,
+  ]);
+
+  const handlePageChange = useCallback(
+    (page: number) => {
+      saveReadingProgress(slug, { chapter: current, page });
+    },
+    [current, slug],
+  );
 
   useEffect(() => {
     const onChange = () => setFullscreen(Boolean(document.fullscreenElement));
@@ -312,14 +356,32 @@ export function ReaderView({
         }
       >
         {isIllustration ? (
-          <div className="flex h-full min-h-0 items-center justify-center overflow-hidden bg-[#070b10] p-1.5 sm:p-2">
+          <div
+            className="flex overflow-hidden bg-[#070b10]"
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              width: "100%",
+              height: "100%",
+              padding: "10px",
+              boxSizing: "border-box",
+            }}
+          >
             {chapter.image ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={illustrationUrl(slug, chapter.image.path)}
                 alt={chapter.image.prompt || "Book illustration"}
-                className="block h-full w-full object-contain"
-                style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                className="block object-contain"
+                style={{
+                  objectFit: "contain",
+                  maxWidth: "100%",
+                  maxHeight: "100%",
+                  border: "1px solid rgba(150, 150, 150, 0.35)",
+                  borderRadius: "0",
+                  boxShadow: "0 6px 18px rgba(0,0,0,0.35)",
+                }}
               />
             ) : (
               <div className="flex flex-col items-center gap-3 px-6 text-center">
@@ -342,6 +404,8 @@ export function ReaderView({
             content={content}
             outline={outline}
             preferences={reading.preferences}
+            initialPage={current === initialResolvedChapter ? initialPage : 0}
+            onPageChange={handlePageChange}
             hasPreviousChapter={Boolean(previous)}
             hasNextChapter={Boolean(next)}
             onPreviousChapter={() => previous && goTo(previous.number)}

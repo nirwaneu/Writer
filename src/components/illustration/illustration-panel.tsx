@@ -172,8 +172,21 @@ export function IllustrationPanel({
         <figure
           className={
             immersive
-              ? "flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-[4px] bg-[#070b10] p-1.5 sm:p-2"
+              ? "flex min-h-0 flex-1 overflow-hidden rounded-[4px] bg-[#070b10]"
               : "overflow-hidden rounded-[4px] border border-[var(--page-line)] bg-[var(--page-code-bg)] p-2"
+          }
+          style={
+            immersive
+              ? {
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  width: "100%",
+                  height: "100%",
+                  padding: "10px",
+                  boxSizing: "border-box",
+                }
+              : undefined
           }
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -182,12 +195,19 @@ export function IllustrationPanel({
             alt={chapter.image?.prompt || "Book illustration"}
             className={
               immersive
-                ? "block h-full w-full object-contain"
+                ? "block object-contain"
                 : "mx-auto max-h-[70vh] w-auto max-w-full object-contain"
             }
             style={
               immersive
-                ? { width: "100%", height: "100%", objectFit: "contain" }
+                ? {
+                    objectFit: "contain",
+                    maxWidth: "100%",
+                    maxHeight: "100%",
+                    border: "1px solid rgba(150, 150, 150, 0.35)",
+                    borderRadius: "0",
+                    boxShadow: "0 6px 18px rgba(0,0,0,0.35)",
+                  }
                 : undefined
             }
           />

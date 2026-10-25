@@ -20,6 +20,8 @@ export function PaginatedReader({
   content,
   outline,
   preferences,
+  initialPage = 0,
+  onPageChange,
   hasPreviousChapter,
   hasNextChapter,
   onPreviousChapter,
@@ -29,6 +31,8 @@ export function PaginatedReader({
   content: string;
   outline: Outline;
   preferences: ReadingPreferences;
+  initialPage?: number;
+  onPageChange?: (page: number) => void;
   hasPreviousChapter: boolean;
   hasNextChapter: boolean;
   onPreviousChapter: () => void;
@@ -39,7 +43,7 @@ export function PaginatedReader({
   const touchStartX = useRef<number | null>(null);
   const [pageWidth, setPageWidth] = useState(0);
   const [pageCount, setPageCount] = useState(1);
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(Math.max(0, initialPage));
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -67,6 +71,10 @@ export function PaginatedReader({
     observer.observe(element);
     return () => observer.disconnect();
   }, [content, pageWidth, chapter.number, preferences.fontFamily, preferences.fontSize]);
+
+  useEffect(() => {
+    onPageChange?.(page);
+  }, [onPageChange, page]);
 
   const previousPage = useCallback(() => {
     if (page > 0) {
