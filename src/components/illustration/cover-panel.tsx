@@ -11,6 +11,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { illustrationUrl } from "@/lib/pages";
 import { useAvailableModels } from "@/lib/use-available-models";
 import { handleEnterKey, useEnterBehavior } from "@/lib/use-enter-behavior";
+import {
+  applyArtStyle,
+  ART_STYLES,
+  DEFAULT_ART_STYLE_ID,
+  getArtStyle,
+} from "@/lib/image-styles";
 import type { Illustration, ImageAspectRatio, Outline } from "@/lib/schemas";
 
 const ASPECTS: Array<{ value: ImageAspectRatio; label: string; hint: string }> = [
@@ -33,6 +39,7 @@ export function CoverPanel({
   onSaved: (outline: Outline) => void;
 }) {
   const [prompt, setPrompt] = useState(cover?.prompt ?? "");
+  const [styleId, setStyleId] = useState(DEFAULT_ART_STYLE_ID);
   const [negativePrompt, setNegativePrompt] = useState(cover?.negativePrompt ?? "");
   const [aspectRatio, setAspectRatio] = useState<ImageAspectRatio>(
     cover?.aspectRatio ?? "portrait",
@@ -95,7 +102,8 @@ export function CoverPanel({
           slug,
           providerId,
           model: model.trim(),
-          prompt,
+          prompt: applyArtStyle(prompt, styleId),
+          basePrompt: prompt,
           negativePrompt,
           aspectRatio,
         }),
@@ -187,6 +195,26 @@ export function CoverPanel({
           className="min-h-24 text-[12.5px] leading-relaxed"
           maxLength={4_000}
         />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="cover-style">Illustration Style</Label>
+        <Select
+          id="cover-style"
+          value={styleId}
+          onChange={(event) => setStyleId(event.target.value)}
+        >
+          {ART_STYLES.map((style) => (
+            <option key={style.id} value={style.id}>
+              {style.name}
+            </option>
+          ))}
+        </Select>
+        <p className="text-[10.5px] leading-relaxed text-muted-foreground">
+          {getArtStyle(styleId).promptSuffix
+            ? `Appended to the prompt: ${getArtStyle(styleId).promptSuffix.replace(/^,\s*/, "")}`
+            : "Uses the prompt exactly as written."}
+        </p>
       </div>
 
       <div className="space-y-1.5">

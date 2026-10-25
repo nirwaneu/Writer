@@ -20,7 +20,8 @@ const schema = z.object({
   pageNumber: z.number().int().positive().max(500),
   providerId: z.string().min(1).max(100),
   model: z.string().trim().min(1).max(200),
-  prompt: z.string().trim().min(1).max(4_000),
+  prompt: z.string().trim().min(1).max(6_000),
+  basePrompt: z.string().trim().max(4_000).optional(),
   negativePrompt: z.string().max(2_000).optional(),
   aspectRatio: imageAspectRatioSchema.default("portrait"),
 });
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
     const savedFilename = writtenFile;
     const outline = await saveIllustrationResult(slug, input.pageNumber, {
       path: writtenFile,
-      prompt: input.prompt,
+      prompt: input.basePrompt?.trim() || input.prompt,
       negativePrompt: input.negativePrompt?.trim() ?? "",
       aspectRatio: input.aspectRatio,
       providerId: provider.id,

@@ -10,6 +10,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { illustrationUrl } from "@/lib/pages";
 import { useAvailableModels } from "@/lib/use-available-models";
 import { handleEnterKey, useEnterBehavior } from "@/lib/use-enter-behavior";
+import {
+  applyArtStyle,
+  ART_STYLES,
+  DEFAULT_ART_STYLE_ID,
+  getArtStyle,
+} from "@/lib/image-styles";
 import type { Chapter, ImageAspectRatio, Outline } from "@/lib/schemas";
 
 const ASPECTS: Array<{ value: ImageAspectRatio; label: string; hint: string }> = [
@@ -32,6 +38,7 @@ export function IllustrationPanel({
   onSaved: (outline: Outline) => void;
 }) {
   const [prompt, setPrompt] = useState(chapter.image?.prompt ?? "");
+  const [styleId, setStyleId] = useState(DEFAULT_ART_STYLE_ID);
   const [negativePrompt, setNegativePrompt] = useState(
     chapter.image?.negativePrompt ?? "",
   );
@@ -105,7 +112,8 @@ export function IllustrationPanel({
           pageNumber,
           providerId,
           model: model.trim(),
-          prompt,
+          prompt: applyArtStyle(prompt, styleId),
+          basePrompt: prompt,
           negativePrompt,
           aspectRatio,
         }),
@@ -209,6 +217,26 @@ export function IllustrationPanel({
             className="min-h-28 text-[12.5px] leading-relaxed"
             maxLength={4_000}
           />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor={`illustration-style-${pageNumber}`}>Illustration Style</Label>
+          <Select
+            id={`illustration-style-${pageNumber}`}
+            value={styleId}
+            onChange={(event) => setStyleId(event.target.value)}
+          >
+            {ART_STYLES.map((style) => (
+              <option key={style.id} value={style.id}>
+                {style.name}
+              </option>
+            ))}
+          </Select>
+          <p className="text-[10.5px] leading-relaxed text-muted-foreground">
+            {getArtStyle(styleId).promptSuffix
+              ? `Appended to the prompt: ${getArtStyle(styleId).promptSuffix.replace(/^,\s*/, "")}`
+              : "Uses the prompt exactly as written."}
+          </p>
         </div>
 
         <div className="space-y-1.5">
