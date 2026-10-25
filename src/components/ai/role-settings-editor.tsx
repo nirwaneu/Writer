@@ -2,6 +2,7 @@
 
 import { Info } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { GenerationParamsFields } from "@/components/ai/parameter-fields";
@@ -106,9 +107,23 @@ export function RoleSettingsEditor({
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor={`injection-after-system-${role}`}>
-            Injection: After System Prompt
-          </Label>
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor={`injection-after-system-${role}`}>Context Anchor</Label>
+            <Select
+              aria-label="Context Anchor role"
+              value={value.contextAnchorRole ?? "system"}
+              onChange={(event) =>
+                onChange({
+                  ...value,
+                  contextAnchorRole: event.target.value as "system" | "user",
+                })
+              }
+              className="h-7 w-28 text-[11px]"
+            >
+              <option value="system">System</option>
+              <option value="user">User</option>
+            </Select>
+          </div>
           <Textarea
             id={`injection-after-system-${role}`}
             value={value.injectionAfterSystemPrompt ?? ""}
@@ -116,17 +131,18 @@ export function RoleSettingsEditor({
               onChange({ ...value, injectionAfterSystemPrompt: event.target.value })
             }
             className="min-h-32 resize-y font-sans text-[12px] leading-relaxed"
-            placeholder="Optional assistant message inserted immediately after the system prompt."
+            placeholder="Optional context inserted immediately before the new user message."
             spellCheck
           />
           <p className="text-[10.5px] leading-relaxed text-muted-foreground">
-            Sent as an <span className="font-mono">assistant</span> message at position 2.
+            Sent before the latest user message as a{" "}
+            <span className="font-mono">{value.contextAnchorRole ?? "system"}</span> message.
           </p>
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor={`injection-after-last-${role}`}>
-            Injection: After Last Message
+            Assistant Prefill
           </Label>
           <Textarea
             id={`injection-after-last-${role}`}
@@ -135,11 +151,12 @@ export function RoleSettingsEditor({
               onChange({ ...value, injectionAfterLastMessage: event.target.value })
             }
             className="min-h-32 resize-y font-sans text-[12px] leading-relaxed"
-            placeholder="Optional assistant message appended after the final user message."
+            placeholder="Optional assistant text placed at the very end of the payload."
             spellCheck
           />
           <p className="text-[10.5px] leading-relaxed text-muted-foreground">
-            Sent as a final <span className="font-mono">assistant</span> message.
+            Sent as the final <span className="font-mono">assistant</span> message, forcing the
+            model to continue from this text.
           </p>
         </div>
       </div>

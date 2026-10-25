@@ -14,8 +14,8 @@ Private by default. Provider-agnostic. Yours to host.
 
 VibeDraft gives you direct control over how the model behaves. Every role supports **unlimited system prompts** plus two optional assistant injections:
 
-- **Injection: After System Prompt** — lock a persona, tone, point of view, or response contract before any story context is added.
-- **Injection: After Last Message** — add a final instruction, formatting rule, or persona reminder after the latest user message.
+- **Context Anchor** — insert context immediately before the new user message as either a `system` or `user` message.
+- **Assistant Prefill** — append an `assistant` message at the very bottom of the payload to steer the model's continuation.
 
 This is especially useful for complex, uncensored, or highly stylized writing where generic assistant refusals and personality drift get in the way. You stay in charge of the instruction stack.
 

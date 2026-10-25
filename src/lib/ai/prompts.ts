@@ -96,16 +96,21 @@ function userMessage(content: string): ChatInputMessage {
 }
 
 export type PromptInjections = {
-  afterSystemPrompt?: string;
-  afterLastMessage?: string;
+  contextAnchor?: string;
+  contextAnchorRole?: "system" | "user";
+  assistantPrefill?: string;
 };
 
 export function roleInjections(
-  role: Pick<RoleConfig, "injectionAfterSystemPrompt" | "injectionAfterLastMessage">,
+  role: Pick<
+    RoleConfig,
+    "injectionAfterSystemPrompt" | "injectionAfterLastMessage" | "contextAnchorRole"
+  >,
 ): PromptInjections {
   return {
-    afterSystemPrompt: role.injectionAfterSystemPrompt,
-    afterLastMessage: role.injectionAfterLastMessage,
+    contextAnchor: role.injectionAfterSystemPrompt,
+    contextAnchorRole: role.contextAnchorRole,
+    assistantPrefill: role.injectionAfterLastMessage,
   };
 }
 
@@ -114,16 +119,21 @@ function applyInjections(
   injections?: PromptInjections,
 ): ChatInputMessage[] {
   if (!injections) return messages;
-  const afterSystem = injections.afterSystemPrompt?.trim();
-  const afterLast = injections.afterLastMessage?.trim();
-  if (!afterSystem && !afterLast) return messages;
+  const anchor = injections.contextAnchor?.trim();
+  const prefill = injections.assistantPrefill?.trim();
+  if (!anchor && !prefill) return messages;
 
   const next = [...messages];
-  if (afterSystem) {
-    next.splice(1, 0, { role: "assistant", content: afterSystem });
+  if (anchor) {
+    const lastUserIndex = next.findLastIndex((message) => message.role === "user");
+    const insertAt = lastUserIndex >= 0 ? lastUserIndex : next.length;
+    next.splice(insertAt, 0, {
+      role: injections.contextAnchorRole === "user" ? "user" : "system",
+      content: anchor,
+    });
   }
-  if (afterLast) {
-    next.push({ role: "assistant", content: afterLast });
+  if (prefill) {
+    next.push({ role: "assistant", content: prefill });
   }
   return next;
 }

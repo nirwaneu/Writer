@@ -95,7 +95,7 @@ describe("planner prompt", () => {
     expect(messages.at(-1)?.content).toContain("Plan this chapter");
   });
 
-  it("splices role injections after the system prompt and after the final user message", () => {
+  it("places the context anchor before the new user message and the prefill at the bottom", () => {
     const messages = buildPlannerMessages(
       outline,
       2,
@@ -103,23 +103,45 @@ describe("planner prompt", () => {
       "What next?",
       roles.planner.systemPrompt,
       {
-        afterSystemPrompt: "SYSTEM INJECTION",
-        afterLastMessage: "LAST MESSAGE INJECTION",
+        contextAnchor: "SYSTEM INJECTION",
+        assistantPrefill: "LAST MESSAGE INJECTION",
       },
     );
     expect(messages[0]).toEqual({
       role: "system",
       content: roles.planner.systemPrompt.trim(),
     });
-    expect(messages[1]).toEqual({
-      role: "assistant",
+    expect(messages.at(-3)).toEqual({
+      role: "system",
       content: "SYSTEM INJECTION",
     });
     expect(messages.at(-2)?.role).toBe("user");
+    expect(messages.at(-2)?.content).toContain("What next?");
     expect(messages.at(-1)).toEqual({
       role: "assistant",
       content: "LAST MESSAGE INJECTION",
     });
+  });
+
+  it("supports a user-role context anchor and omits empty injections", () => {
+    const messages = buildPlannerMessages(
+      outline,
+      2,
+      plan,
+      "What next?",
+      roles.planner.systemPrompt,
+      {
+        contextAnchor: "ANCHOR AS USER",
+        contextAnchorRole: "user",
+        assistantPrefill: "   ",
+      },
+    );
+    expect(messages.at(-2)).toEqual({
+      role: "user",
+      content: "ANCHOR AS USER",
+    });
+    expect(messages.at(-1)?.role).toBe("user");
+    expect(messages.at(-1)?.content).toContain("What next?");
   });
 });
 
@@ -207,4 +229,5 @@ describe("splitForSummary", () => {
     expect(splitForSummary("one paragraph", 700)).toEqual(["one paragraph"]);
   });
 });
+
 

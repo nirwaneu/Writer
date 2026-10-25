@@ -81,30 +81,40 @@ export function createDefaultRoles(): PresetRoles {
       systemPrompt: PLANNER_PROMPT,
       injectionAfterSystemPrompt: "",
       injectionAfterLastMessage: "",
+
+      contextAnchorRole: "system",
       params: { ...DEFAULT_ROLE_PARAMS.planner },
     },
     executor: {
       systemPrompt: EXECUTOR_PROMPT,
       injectionAfterSystemPrompt: "",
       injectionAfterLastMessage: "",
+
+      contextAnchorRole: "system",
       params: { ...DEFAULT_ROLE_PARAMS.executor },
     },
     summarizer: {
       systemPrompt: SUMMARIZER_PROMPT,
       injectionAfterSystemPrompt: "",
       injectionAfterLastMessage: "",
+
+      contextAnchorRole: "system",
       params: { ...DEFAULT_ROLE_PARAMS.summarizer },
     },
     imagePrompter: {
       systemPrompt: DEFAULT_IMAGE_PROMPTER_PROMPT,
       injectionAfterSystemPrompt: "",
       injectionAfterLastMessage: "",
+
+      contextAnchorRole: "system",
       params: { ...DEFAULT_ROLE_PARAMS.imagePrompter },
     },
     titleGenerator: {
       systemPrompt: DEFAULT_TITLE_PROMPT,
       injectionAfterSystemPrompt: "",
       injectionAfterLastMessage: "",
+
+      contextAnchorRole: "system",
       params: { ...DEFAULT_ROLE_PARAMS.titleGenerator },
     },
   };
@@ -188,3 +198,4 @@ export function buildFallbackBookConfig(config: AppConfig): BookConfig {
 export function roleConfig(roles: PresetRoles, role: keyof PresetRoles): RoleConfig {
   return roles[role];
 }
+

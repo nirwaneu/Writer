@@ -313,8 +313,8 @@ Illustration pages sit between text chapters without consuming a chapter number.
 Every role supports:
 
 - **System prompt**
-- **Injection: After System Prompt**
-- **Injection: After Last Message**
+- **Context Anchor** (role: System or User)
+- **Assistant Prefill** (role: Assistant)
 - Generation parameters
 
 System prompts and injections have no character limit. They are stored as text in SQLite.
@@ -324,18 +324,18 @@ System prompts and injections have no character limit. They are stored as text i
 The final request array is constructed in this order:
 
 1. `system` — the role's system prompt
-2. `assistant` — optional injection after the system prompt
-3. Existing middle context — premise, vault, outlines, chat history, and task context
+2. Existing middle context — premise, vault, outlines, chat history, and task context
+3. Context Anchor — optional `system` or `user` message immediately before the new user message
 4. `user` — the latest user message or planner instruction
-5. `assistant` — optional injection after the last message
+5. Assistant Prefill — optional final `assistant` message
 
 The injections are array insertions. Existing context construction is unchanged.
 
 ### When to Use Each Injection
 
-**After System Prompt**
+**Context Anchor**
 
-Use this to lock the assistant's persona before story context arrives.
+Use this to add context or persona guidance immediately before the new user message.
 
 Examples:
 
@@ -344,7 +344,7 @@ Examples:
 - Lock a formatting contract.
 - Prevent the model from commenting on the prompt itself.
 
-**After Last Message**
+**Assistant Prefill**
 
 Use this to enforce the final response shape after all story context and instructions.
 
@@ -360,8 +360,8 @@ Examples:
 A common pattern is:
 
 - System prompt: role definition and writing philosophy.
-- After System Prompt: persona, tone, and refusal policy.
-- After Last Message: output contract and formatting.
+- Context Anchor: persona, tone, and refusal policy before the new user message.
+- Assistant Prefill: output contract and continuation steering at the bottom.
 
 Keep instructions non-contradictory. If the model receives conflicting rules, the last instruction usually wins.
 
@@ -624,3 +624,4 @@ npm run build
 - Keep the interface quiet enough to write in.
 
 For the visual system, see **DESIGN.md**.
+

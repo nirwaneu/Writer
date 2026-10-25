@@ -106,6 +106,7 @@ export const roleConfigSchema = z.object({
   systemPrompt: z.string().trim().min(1),
   injectionAfterSystemPrompt: z.string().default(""),
   injectionAfterLastMessage: z.string().default(""),
+  contextAnchorRole: z.enum(["system", "user"]).default("system"),
   params: generationParamsSchema,
 });
 
@@ -117,12 +118,14 @@ export const presetRolesSchema = z.object({
     systemPrompt: DEFAULT_IMAGE_PROMPTER_PROMPT,
     injectionAfterSystemPrompt: "",
     injectionAfterLastMessage: "",
+    contextAnchorRole: "system",
     params: { ...DEFAULT_IMAGE_PROMPTER_PARAMS },
   }),
   titleGenerator: roleConfigSchema.default({
     systemPrompt: DEFAULT_TITLE_PROMPT,
     injectionAfterSystemPrompt: "",
     injectionAfterLastMessage: "",
+    contextAnchorRole: "system",
     params: { ...DEFAULT_TITLE_PARAMS },
   }),
 });
