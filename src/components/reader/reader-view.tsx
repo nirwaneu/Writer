@@ -1,17 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
+  AlignLeft,
   ArrowLeft,
   ArrowRight,
   ChevronDown,
   Download,
   FileText,
+  GalleryHorizontal,
   ListTree,
+  Maximize,
+  Minimize,
   PencilLine,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,7 +34,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { OutlineView } from "@/components/outline/outline-view";
+import { PaginatedReader } from "@/components/reader/paginated-reader";
 import { ReadingToolbar } from "@/components/reading/reading-toolbar";
+import { useReaderLayout } from "@/lib/use-reader-layout";
 import {
   readingPageWidth,
   readingPaperStyle,
@@ -61,6 +67,9 @@ export function ReaderView({
   const router = useRouter();
   const [current, setCurrent] = useState(initialChapter);
   const [outlineOpen, setOutlineOpen] = useState(false);
+  const { layout, setLayout, ready } = useReaderLayout();
+  const [fullscreen, setFullscreen] = useState(false);
+  const readerRef = useRef<HTMLDivElement>(null);
   const reading = useReadingPreferences();
 
   const chapter = outline.chapters.find((item) => item.number === current) ?? outline.chapters[0];
@@ -85,7 +94,26 @@ export function ReaderView({
   }
 
   useEffect(() => {
+    const onChange = () => setFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  async function toggleFullscreen() {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen().catch(() => undefined);
+      return;
+    }
+    try {
+      await readerRef.current?.requestFullscreen?.();
+    } catch {
+      // Fullscreen can be blocked by browser policy.
+    }
+  }
+
+  useEffect(() => {
     function onKey(event: KeyboardEvent) {
+      if (layout === "pages") return;
       const tag = (event.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       if (event.key === "ArrowLeft" && previous) {
@@ -109,14 +137,25 @@ export function ReaderView({
     );
   }
 
-  return (
-    <div className="flex h-full flex-col">
-      <div className="h-0.5 shrink-0 bg-[#18212b]">
-        <div
-          className="h-full bg-primary/80 transition-[width] duration-200 ease-out"
-          style={{ width: `${progress}%` }}
-        />
+  if (!ready) {
+    return (
+      <div className="flex h-full items-center justify-center text-[13px] text-muted-foreground">
+        Opening the reader…
       </div>
+    );
+  }
+
+  return (
+    <div ref={readerRef} className="flex h-full flex-col bg-[#0b0f14]">
+      {!fullscreen ? (
+        <div className="h-0.5 shrink-0 bg-[#18212b]">
+          <div
+            className="h-full bg-primary/80 transition-[width] duration-200 ease-out"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      ) : null}
+      {!fullscreen ? (
       <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-[#0b0f14] px-3 sm:px-5">
         <div className="flex min-w-0 items-center gap-2">
           <Button asChild variant="ghost" size="icon-sm" aria-label="Back to book details">
@@ -217,15 +256,99 @@ export function ReaderView({
           </Button>
         </div>
       </header>
+      ) : null}
 
+      {!fullscreen ? (
       <div className="flex shrink-0 items-center justify-end gap-2 border-b border-border bg-[#0b0f14] px-3 py-1.5 sm:justify-between sm:px-5">
         <span className="hidden font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground sm:inline">
           Reading comfort
         </span>
-        <ReadingToolbar preferences={reading.preferences} onChange={reading.update} />
+        <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-0.5 rounded-md border border-border bg-[#0c1218] p-0.5">
+            {(
+              [
+                ["scroll", "Scroll", AlignLeft],
+                ["pages", "Pages", GalleryHorizontal],
+              ] as const
+            ).map(([value, label, Icon]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setLayout(value)}
+                aria-pressed={layout === value}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-[4px] px-2 py-1 text-[11px] transition-colors",
+                  layout === value
+                    ? "bg-secondary text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Icon className="size-3.5" />
+                {label}
+              </button>
+            ))}
+          </div>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => void toggleFullscreen()}
+            aria-label="Enter fullscreen"
+            title="Enter fullscreen"
+          >
+            <Maximize />
+          </Button>
+          <ReadingToolbar preferences={reading.preferences} onChange={reading.update} />
+        </div>
       </div>
+      ) : null}
 
-      <div id="reader-scroll" className="min-h-0 flex-1 overflow-y-auto">
+      <div
+        className={
+          isIllustration
+            ? "min-h-0 flex-1 overflow-hidden"
+            : layout === "pages"
+              ? "min-h-0 flex-1 overflow-hidden"
+              : "min-h-0 flex-1 overflow-y-auto"
+        }
+      >
+        {isIllustration ? (
+          <div className="flex h-full min-h-0 items-center justify-center overflow-hidden bg-[#070b10] p-1.5 sm:p-2">
+            {chapter.image ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={illustrationUrl(slug, chapter.image.path)}
+                alt={chapter.image.prompt || "Book illustration"}
+                className="block h-full w-full object-contain"
+                style={{ width: "100%", height: "100%", objectFit: "contain" }}
+              />
+            ) : (
+              <div className="flex flex-col items-center gap-3 px-6 text-center">
+                <p className="font-serif text-[1.2rem] italic text-muted-foreground">
+                  This illustration page has no image yet.
+                </p>
+                <Link
+                  href={`/novels/${slug}/write?chapter=${chapter.number}`}
+                  className="text-[12px] text-primary underline underline-offset-4"
+                >
+                  Generate the illustration
+                </Link>
+              </div>
+            )}
+          </div>
+        ) : layout === "pages" ? (
+          <PaginatedReader
+            key={chapter.number}
+            chapter={chapter}
+            content={content}
+            outline={outline}
+            preferences={reading.preferences}
+            hasPreviousChapter={Boolean(previous)}
+            hasNextChapter={Boolean(next)}
+            onPreviousChapter={() => previous && goTo(previous.number)}
+            onNextChapter={() => next && goTo(next.number)}
+          />
+        ) : (
+        <div id="reader-scroll" className="min-h-0 h-full overflow-y-auto">
         <div
           className="mx-auto w-full px-4 py-8 sm:px-8 sm:py-12"
           style={{ maxWidth: readingPageWidth(reading.preferences) }}
@@ -348,6 +471,20 @@ export function ReaderView({
           </p>
         </div>
       </div>
+        )}
+      </div>
+      {fullscreen ? (
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => void toggleFullscreen()}
+          className="fixed right-4 top-4 z-50 shadow-lg"
+          aria-label="Exit fullscreen"
+        >
+          <Minimize />
+          Exit fullscreen
+        </Button>
+      ) : null}
     </div>
   );
 }

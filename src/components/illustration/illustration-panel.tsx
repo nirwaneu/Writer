@@ -30,12 +30,14 @@ export function IllustrationPanel({
   chapter,
   providers,
   onSaved,
+  immersive = false,
 }: {
   slug: string;
   pageNumber: number;
   chapter: Chapter;
   providers: Array<{ id: string; name: string }>;
   onSaved: (outline: Outline) => void;
+  immersive?: boolean;
 }) {
   const [prompt, setPrompt] = useState(chapter.image?.prompt ?? "");
   const [styleId, setStyleId] = useState(DEFAULT_ART_STYLE_ID);
@@ -52,6 +54,7 @@ export function IllustrationPanel({
   const [model, setModel] = useState(chapter.image?.model ?? "");
   const [generating, setGenerating] = useState(false);
   const [writingPrompt, setWritingPrompt] = useState(false);
+  const [controlsOpen, setControlsOpen] = useState(!chapter.image?.path);
   const [error, setError] = useState<string | null>(null);
   const { options, loading } = useAvailableModels();
   const { behavior } = useEnterBehavior();
@@ -128,6 +131,7 @@ export function IllustrationPanel({
       }
       onSaved(payload.outline);
       setError(null);
+      setControlsOpen(false);
       toast.success("Illustration generated and saved.");
     } catch {
       setError("Could not reach the app server while generating the illustration.");
@@ -137,39 +141,70 @@ export function IllustrationPanel({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-[var(--page-line)] pb-4">
-        <div>
-          <p className="paper-kicker font-mono text-[9px] uppercase tracking-[0.18em]">
-            Illustration page
-          </p>
-          <h2 className="paper-title mt-1 font-serif text-[1.5rem] leading-tight">
-            A plate for the book.
-          </h2>
-          <p className="paper-soft mt-1 max-w-xl text-[11.5px] leading-relaxed">
-            Generate an image with any configured provider. The file is stored on the data
-            volume beside your manuscript.
-          </p>
+    <div
+      className={
+        immersive
+          ? "flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-2 sm:p-3"
+          : "space-y-6"
+      }
+    >
+      {immersive ? null : (
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-[var(--page-line)] pb-4">
+          <div>
+            <p className="paper-kicker font-mono text-[9px] uppercase tracking-[0.18em]">
+              Illustration page
+            </p>
+            <h2 className="paper-title mt-1 font-serif text-[1.5rem] leading-tight">
+              A plate for the book.
+            </h2>
+            <p className="paper-soft mt-1 max-w-xl text-[11.5px] leading-relaxed">
+              Generate an image with any configured provider. The file is stored on the data
+              volume beside your manuscript.
+            </p>
+          </div>
+          <span className="paper-kicker font-mono text-[9px] uppercase tracking-[0.14em]">
+            Page {pageNumber}
+          </span>
         </div>
-        <span className="paper-kicker font-mono text-[9px] uppercase tracking-[0.14em]">
-          Page {pageNumber}
-        </span>
-      </div>
+      )}
 
       {imagePath ? (
-        <figure className="overflow-hidden rounded-[4px] border border-[var(--page-line)] bg-[var(--page-code-bg)] p-2">
+        <figure
+          className={
+            immersive
+              ? "flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-[4px] bg-[#070b10] p-1.5 sm:p-2"
+              : "overflow-hidden rounded-[4px] border border-[var(--page-line)] bg-[var(--page-code-bg)] p-2"
+          }
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={illustrationUrl(slug, imagePath)}
             alt={chapter.image?.prompt || "Book illustration"}
-            className="mx-auto max-h-[70vh] w-auto max-w-full object-contain"
+            className={
+              immersive
+                ? "block h-full w-full object-contain"
+                : "mx-auto max-h-[70vh] w-auto max-w-full object-contain"
+            }
+            style={
+              immersive
+                ? { width: "100%", height: "100%", objectFit: "contain" }
+                : undefined
+            }
           />
-          <figcaption className="paper-kicker mt-2 px-1 font-mono text-[9px] uppercase tracking-[0.14em]">
-            {chapter.image?.model} · {chapter.image?.aspectRatio}
-          </figcaption>
+          {immersive ? null : (
+            <figcaption className="paper-kicker mt-2 px-1 font-mono text-[9px] uppercase tracking-[0.14em]">
+              {chapter.image?.model} · {chapter.image?.aspectRatio}
+            </figcaption>
+          )}
         </figure>
       ) : (
-        <div className="flex min-h-48 flex-col items-center justify-center gap-3 rounded-[4px] border border-dashed border-[var(--page-line)] px-6 py-10 text-center">
+        <div
+          className={
+            immersive
+              ? "flex min-h-48 flex-1 flex-col items-center justify-center gap-3 rounded-[4px] border border-dashed border-[var(--page-line)] px-6 py-10 text-center"
+              : "flex min-h-48 flex-col items-center justify-center gap-3 rounded-[4px] border border-dashed border-[var(--page-line)] px-6 py-10 text-center"
+          }
+        >
           <span className="flex size-10 items-center justify-center rounded-full border border-[var(--page-line)]">
             <ImageIcon className="size-4 paper-soft" />
           </span>
@@ -182,7 +217,19 @@ export function IllustrationPanel({
         </div>
       )}
 
-      <div className="space-y-3">
+      <details
+        open={controlsOpen}
+        onToggle={(event) => setControlsOpen(event.currentTarget.open)}
+        className={
+          immersive
+            ? "shrink-0 rounded-md border border-[var(--page-line)] bg-[var(--page-code-bg)] px-3 py-2"
+            : "rounded-md border border-[var(--page-line)] bg-[var(--page-code-bg)] px-3 py-2"
+        }
+      >
+        <summary className="cursor-pointer select-none font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+          Prompt &amp; generation controls
+        </summary>
+        <div className="mt-3 space-y-3">
         <div className="space-y-1.5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <Label htmlFor={`illustration-prompt-${pageNumber}`}>Prompt</Label>
@@ -331,7 +378,8 @@ export function IllustrationPanel({
             {generating ? "Generating…" : imagePath ? "Regenerate illustration" : "Generate"}
           </Button>
         </div>
-      </div>
+        </div>
+      </details>
     </div>
   );
 }

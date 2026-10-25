@@ -834,7 +834,18 @@ function WorkspaceSession({
     ? chapterDisplayNumber(nextTextPage)
     : displayNumber + 1;
 
-  const writePane = (
+  const writePane = isIllustration ? (
+    <div className="h-full min-h-0">
+      <IllustrationPanel
+        slug={slug}
+        pageNumber={chapterNumber}
+        chapter={chapter}
+        providers={imageProviders}
+        onSaved={setOutline}
+        immersive
+      />
+    </div>
+  ) : (
     <div className="relative flex h-full min-h-0 flex-col">
       <div
         ref={scrollRef}

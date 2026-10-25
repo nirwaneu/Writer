@@ -149,6 +149,8 @@ The choice is stored in browser `localStorage` under `vibedraft:enter-behavior` 
 
 While the Executor streams, the page follows only when you are already at the bottom. Scroll up and the viewport locks; generation continues below. A **Scroll to bottom** control appears while the stream is active, with a live indicator.
 
+Reading Mode supports **Scroll** and **Pages** layouts. Pages uses CSS multi-column pagination with click, keyboard, and swipe navigation. A fullscreen toggle hides the app chrome and fills the screen with the current page.
+
 ## Reasoning and chat versions
 
 - Model reasoning is parsed from `reasoning_content`, `reasoning`, or `<think>` blocks and shown above the reply in a collapsed **Reasoning** accordion.
