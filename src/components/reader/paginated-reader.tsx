@@ -11,6 +11,7 @@ import {
   type ReadingPreferences,
 } from "@/lib/reading-preferences";
 import { chapterDisplayTitle, pageKindLabel } from "@/lib/pages";
+import { cn } from "@/lib/utils";
 import type { Chapter, Outline } from "@/lib/schemas";
 
 const COLUMN_GAP = 56;
@@ -115,7 +116,10 @@ export function PaginatedReader({
       style={{ maxWidth: readingPageWidth(preferences) }}
     >
       <div
-        className="paper-sheet relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[4px] px-6 py-8 sm:px-12 sm:py-12"
+        className={cn(
+          "paper-sheet relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[4px] px-6 py-8 sm:px-12 sm:py-12",
+          preferences.theme === "dark" && "paper-dark",
+        )}
         style={readingPaperStyle(preferences)}
       >
         <div
