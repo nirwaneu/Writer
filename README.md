@@ -1,267 +1,131 @@
 # VibeDraft
 
-Self-hosted AI novel-writing desk. Two panels: the Executor drafts on the left, the Planner thinks on the right. The Story Vault is the only context sent to the models — never the whole manuscript.
+**A private, self-hosted AI desk for writing long-form fiction.**
 
-SQLite for state and Markdown for manuscripts. One Docker volume.
+VibeDraft is built for novelists who want the speed of modern AI without giving up control of their voice, their data, or their process. It pairs a focused writing workspace with a Planner, Executor, Summarizer, and Image Prompter that work from your Story Vault instead of dumping your entire manuscript into a prompt.
 
-## Stack
+Private by default. Provider-agnostic. Yours to host.
 
-- Next.js 16 (App Router) + React 19 + TypeScript
-- Tailwind CSS 4 + shadcn-style Radix primitives
-- TipTap 3 with the official Markdown extension (manuscripts stay Markdown)
-- SQLite + Drizzle ORM + better-sqlite3 for settings, presets, books, vault, and chats
-- SSE streaming through Next route handlers
-- Zod validation, atomic writes, per-file locks
-- `docx` + `marked` + `sanitize-html` for export
+---
 
-## Quick start
+## ✨ Killer Features
+
+### 1. Unrestricted AI Persona Control with Dual Assistant Injection
+
+VibeDraft gives you direct control over how the model behaves. Every role supports **unlimited system prompts** plus two optional assistant injections:
+
+- **Injection: After System Prompt** — lock a persona, tone, point of view, or response contract before any story context is added.
+- **Injection: After Last Message** — add a final instruction, formatting rule, or persona reminder after the latest user message.
+
+This is especially useful for complex, uncensored, or highly stylized writing where generic assistant refusals and personality drift get in the way. You stay in charge of the instruction stack.
+
+### 2. Immersive E-Book Reading Mode
+
+Switch between **Scroll** and **Pages** layouts, turn pages with clicks, keyboard, or swipe, and enter fullscreen for a distraction-free reading session. Dark mode is supported in both layouts.
+
+Illustration pages render as true full-page plates: no chapter title, no editor chrome, no unnecessary padding.
+
+### 3. Integrated Image Generation with Art Styles
+
+Generate chapter illustrations and book covers without leaving the app. Choose a provider, image model, prompt, negative prompt, aspect ratio, and art style:
+
+- Classic Watercolor
+- Vintage Pulp Fiction
+- Visual Novel / Anime
+- Oil Painting
+- Dark Gothic Engraving
+- Abstract Cover Art
+- None (Raw Prompt)
+
+Images are downloaded and stored locally on your data volume, so they survive refreshes, restarts, and container rebuilds.
+
+### 4. 100% Local Privacy & Portability
+
+Your library lives in SQLite and Markdown inside your own Docker volume. There is no hosted VibeDraft account and no cloud library.
+
+Each book can be exported as a validated JSON backup and restored on another machine. Imports create new IDs and remap relations safely, so restoring a backup never overwrites an existing book.
+
+---
+
+## Recommended Providers
+
+VibeDraft was meticulously built and tested against **NanoGPT** and **OpenRouter**, and supports any OpenAI-compatible endpoint.
+
+For the best token-efficient, uncensored, and highly reliable AI generation, **NanoGPT is highly recommended**. Support the development of VibeDraft by creating your NanoGPT account here:
+
+**[Create a NanoGPT account →](https://nano-gpt.com/subscription/weB4cFpW)**
+
+Prefer OpenRouter? That works too. Add both providers and route different roles to different models.
+
+---
+
+## 🚀 Quick Start with Docker
 
 ```bash
+git clone <your-repository-url>
+cd vibedraft
+
 cp .env.example .env
-# edit APP_USERNAME, APP_PASSWORD, SESSION_SECRET
-npm install
-npm run dev
-```
+# Edit APP_USERNAME, APP_PASSWORD, and SESSION_SECRET
 
-Open http://localhost:3000. The first run sends you to `/setup`.
-
-For a local provider, run the bundled mock so the full loop works without an API key:
-
-```bash
-npm run mock-ai
-# Base URL: http://localhost:8787/v1
-# Models: mock-planner, mock-executor, mock-summarizer
-```
-
-The mock streams synthetic text. It is for development only.
-
-To skip the setup screen and put a synthetic book on the shelf, seed the demo after starting the mock:
-
-```bash
-npm run seed:demo
-```
-
-> Warning: `seed:demo` **deletes** `data/vibedraft.db` and replaces the legacy demo files. Run it only on a disposable or fresh data volume, never on a shelf you want to keep.
-
-That writes legacy seed files pointing at `http://localhost:8787/v1` and resets `data/vibedraft.db`. The next app start imports the seed through the one-time legacy migration. Delete `data/` to return to a clean first run.
-
-## Docker
-
-```bash
-cp .env.example .env
-# edit credentials and SESSION_SECRET
-mkdir -p data
 docker compose up -d --build
 ```
 
-Open `http://<host-ip>:3008`. The container listens on `0.0.0.0:3000` internally and publishes only port `3008` to the LAN. SQLite and `novels/*.md` both live under `/data`, bind-mounted from `./data` on the host, so image rebuilds never replace them.
+Open:
 
-The container entrypoint repairs ownership of `/data` on startup before dropping to the non-root app user. On Linux, you can also pre-own the host folder:
+```text
+http://<your-server-ip>:3008
+```
+
+The container listens on `0.0.0.0:3000` internally and publishes port `3008`. Your data lives in `./data` on the host.
+
+On Linux, make the data directory writable by the container user:
 
 ```bash
 sudo chown -R 1001:1001 ./data
 ```
 
-Put it behind HTTPS (Caddy, Traefik, nginx) if it is reachable beyond localhost. The session cookie is marked `Secure` only when the request itself arrives over HTTPS (including `X-Forwarded-Proto`), so plain HTTP on a LAN still works.
+For setup details, LAN access, Hermes Agent updates, backup/restore, and prompt injection recipes, read **[DOCUMENTATION.md](DOCUMENTATION.md)**.
 
-## LAN access
+---
 
-`npm run dev` and `npm run start` bind to `0.0.0.0`, so another device can use `http://<host-ip>:3000`. The browser talks to whatever origin it loaded the page from; all app API calls use relative paths and never a hardcoded `localhost`.
+## What Makes VibeDraft Different?
 
-For development over a private LAN address, Next.js dev-origin protection is relaxed for `192.168.*.*`, `10.*.*.*`, and `172.16.*.*`–`172.31.*.*`. Add custom hostnames (for example mDNS or a tunnel) with `ALLOWED_DEV_ORIGINS=writer.local,tunnel.example.com`.
+- **The Story Vault is the context layer.** The Executor receives the premise, character sheet, relevant chapter summaries, and the current plan — never the whole manuscript.
+- **Manual summary, not surprise automation.** Regenerate and edit freely. Summarize and title a chapter only when you are happy with it.
+- **Multi-provider by design.** Mix NanoGPT, OpenRouter, or a local OpenAI-compatible server across Planner, Executor, Summarizer, Image Prompter, and title generation.
+- **Portable by default.** SQLite + Markdown + local images, with per-book JSON backup and restore.
+- **Made for the homelab.** Docker-first, LAN-accessible, single-user authentication, no external database required.
 
-API CORS headers are emitted only for requests whose `Origin` matches the server host. Cross-origin API access is still rejected; mutations also enforce same-origin checks.
+---
 
-## Data layout
+## Tech Stack
 
-```text
-data/
-├── vibedraft.db                    # settings, presets, books, vault, chats
-└── novels/
-    └── <slug>/
-        ├── chapters/
-        │   ├── chapter_1.md
-        │   └── .history/chapter_1/ # snapshots written before a replacement
-        └── illustrations/          # generated, persisted illustration files
-```
+- Next.js 16 App Router + React 19 + TypeScript
+- Tailwind CSS 4 + Radix/shadcn-style primitives
+- TipTap 3 with Markdown
+- SQLite + Drizzle ORM + better-sqlite3
+- SSE streaming through Next.js route handlers
+- Zod validation, atomic writes, per-file locks
+- Docker multi-stage build with a persistent data volume
 
-SQLite handles global settings, AI presets, book metadata and local settings, the Story Vault (premise, characters, chapter summaries), drafts, and chapter chat histories. Chapter manuscripts stay as Markdown so exports and filesystem backups stay simple. Deleted books move their Markdown folder to `novels/.trash/` and remove their database row.
+---
 
-Writes are transactional in SQLite (WAL mode), and Markdown writes remain atomic (temp file + rename). The app is designed for one instance, matching the single-user auth model. Existing `app_config.json`, `outline.json`, `book_config.json`, and `chats/*.json` files are imported once on first start; the legacy files are left on disk and are no longer read after the migration marker is set.
+## Community & Contributions
 
-## The loop
+Bug reports, prompt recipes, provider notes, and focused pull requests are welcome. If you build something interesting with VibeDraft, share it.
 
-1. **Create new** opens the preset picker, then a Planner conversation. The chosen preset and the current global models are copied into the draft row.
-2. **Premise done** sends the chat to the Summarizer, writes `premise` and an auto-generated title, then opens Chapter 1.
-3. In the workspace, the Planner chat is isolated per chapter in SQLite.
-4. **Execute** sends Story Vault context + that chapter's chat to the Executor and streams Markdown into `chapters/chapter_N.md`.
-5. The chapter is saved. Summarization is **manual**: press **Generate summary** when the draft is final. That action also asks the Planner for a short chapter title and updates the title in SQLite and the UI.
-6. **Continue** advances to the next text chapter and opens the next isolated chat. Illustration pages never consume chapter numbers.
+Before opening a large PR, please describe the problem and the intended behavior so the change can stay aligned with the project's architecture.
 
-The Executor never receives the full manuscript. It receives the premise, characters, selected prior chapter summaries, and the current chapter plan.
+VibeDraft is a single-user, self-hosted application. Do not expose it directly to untrusted users without HTTPS and appropriate network controls.
 
-## Presets and per-book settings
+---
 
-- **Global presets** live at `/presets`. Each preset stores a system prompt and sampling parameters for the Planner, Executor, Summarizer, Image Prompter, and Title Generation: temperature, Top-P, Top-K, frequency penalty, and presence penalty.
-- **Title Generation** uses the Planner model and its own editable prompt. Book titles use the premise; chapter titles use the last Planner response from that chapter.
-- **The base preset** (`Default / General Fiction`) cannot be deleted. It is the fallback for books that have no local settings.
-- **Copy-on-write:** choosing a preset on the new-book screen snapshots the preset's prompts/parameters and the current global default models into the draft row. Publishing turns that row into the book.
-- **Book settings** in the workspace edits the active book's prompts, parameters, and models. Saving writes only that book's row; global presets and global models are untouched.
-- **Characters:** generate a character sheet from the premise with the Planner, or edit characters manually. Both paths write the Story Vault in SQLite.
-- **Pages:** add text chapters or illustration pages from the book page or workspace. Any page can be deleted with confirmation; deleting the current page moves you to a surviving page.
-- **Titles:** book details and the chapter title dialog include a **Generate Title** wand button. Regenerate as often as needed; the result is saved when you save the title.
-- **Archiving:** archive books from the shelf row menu or book details. The shelf shows active books by default; the **Archived** toggle reveals archived books with **Restore** and **Permanently delete** actions. Permanent delete removes the SQLite row and the book folder.
-- **Backup & restore:** **Export backup** in the book actions or book details downloads a validated JSON snapshot of metadata, outline, model/preset selections, chapters, manuscript text, characters, and chat history. Image assets are excluded by design. **Import book** in the Library restores a backup with new book IDs and remapped chapter/chat relations.
-- **Backwards compatibility:** legacy books and drafts imported without local settings resolve to the base/default preset and the global default models at call time. Saving in Book settings writes local settings to the book row.
-- **Payloads:** every AI call reads the book's config immediately before sending. The role's system prompt is the first message; the app appends the Story Vault/task block. Custom parameters are sent as `temperature`, `top_p`, `top_k`, `frequency_penalty`, and `presence_penalty`. `top_k` is omitted when set to 0 for provider compatibility. `reasoning_effort` is sent only when the optional field is non-empty.
-- **Model choice:** connections are global and can span multiple providers. Each role stores a provider-scoped model value, so the Planner, Executor, Summarizer, and Image Prompter can use models from different providers, per book.
+## Documentation
 
-## Illustration pages
+- **[DOCUMENTATION.md](DOCUMENTATION.md)** — installation, environment variables, Docker, Hermes Agent updates, AI workflow, prompt injection, data management, and troubleshooting.
+- **DESIGN.md** — visual system and interface direction.
 
-- Add a page from the book page or workspace: **Add page → Add chapter** or **Add illustration page**.
-- Illustration pages sit in the page sequence without consuming a chapter number. Text chapters keep their logical chapter numbers.
-- The illustration editor chooses a provider, image model, prompt, optional negative prompt, aspect ratio, and **Illustration Style**. Style suffixes are appended to the provider prompt; **None (Raw Prompt)** sends the prompt unchanged. Requests use the OpenAI-compatible `POST /v1/images/generations` payload.
-- **Image models:** open **Settings → Providers → Image models** and flag the image-capable models for each provider. Illustration dropdowns show only flagged models; if none are flagged, all models are shown as a fallback.
-- **Auto-Write Image Prompt** uses the new Image Prompter role, the previous chapter's SQLite summary, and the configured Image Prompter model. Review the result, then generate.
-- Generated bytes are downloaded server-side and saved under `data/novels/<slug>/illustrations/`. SQLite stores the filename, prompt, provider, model, and aspect ratio, so images survive refresh and container rebuilds without remote expiring URLs.
-- **Book covers:** **Book settings → Cover** generates a cover from the title (or an auto-written prompt), stores it in the same persistent illustration folder, and shows it on the book dashboard, library shelf, and featured card.
-- Reading mode renders illustration pages as full-page plates.
+---
 
-## Reading comfort
-
-The Executor and Reading Mode share a compact comfort toolbar:
-
-- Light page / dark page toggle for the manuscript surface only.
-- Text size from 12 to 24 px.
-- Typeface: literary serif, Charter, Garamond, Georgia, or humanist sans.
-- Page width: Standard, Cozy, Wide, or Full.
-
-Theme, text size, typeface, and page width live in browser `localStorage` under `vibedraft:reading-preferences`. They never enter the SQLite database.
-
-## Keyboard submit
-
-The account menu in the header switches the global prompt behavior:
-
-- **Enter sends** with **Shift+Enter** for a new line.
-- **Enter adds a line** with **Ctrl/Cmd+Enter** to send.
-
-The choice is stored in browser `localStorage` under `vibedraft:enter-behavior` and applies to Planner chat, prompt editing, illustration prompts, and cover prompts.
-
-While the Executor streams, the page follows only when you are already at the bottom. Scroll up and the viewport locks; generation continues below. A **Scroll to bottom** control appears while the stream is active, with a live indicator.
-
-Reading Mode supports **Scroll** and **Pages** layouts. Pages uses CSS multi-column pagination with click, keyboard, and swipe navigation. A fullscreen toggle hides the app chrome and fills the screen with the current page.
-
-## Reasoning and chat versions
-
-- Model reasoning is parsed from `reasoning_content`, `reasoning`, or `<think>` blocks and shown above the reply in a collapsed **Reasoning** accordion.
-- Planner replies support **Regenerate** without replacing the previous response. The version switcher (`< 2 / 3 >`) moves between saved alternatives.
-- **Delete** removes only the visible version. The last remaining version removes the reply.
-- **Edit** on a user message resends from that prompt.
-- Active Planner and Executor streams live in a global client store, so navigating away and back resumes the live text, reasoning, and loading state instead of dropping it.
-
-
-## Failure behavior
-
-| Failure | Behavior |
-| --- | --- |
-| Planner stream dies | Partial reply is saved as `failed` and excluded from future context; retry reuses the same user message id. |
-| Executor dies mid-stream | Partial chapter is saved to disk; the editor reloads the saved partial and offers retry. |
-| Executor returns nothing | Existing chapter text is left untouched. |
-| Summarizer fails | Chapter stays saved; chapter status becomes `summary_failed`; retry manually or explicitly skip. Continue is blocked until one of those happens. |
-| Chapter title generation fails | The summary still saves; the existing chapter title is kept. |
-| Book title generation fails | The premise still publishes; the title falls back to a short phrase from the premise. |
-| Premise summary fails | Draft is preserved; retry or write the premise manually. |
-| Two tabs edit one chapter | Server rejects stale writes with `409`; UI offers reload or explicit overwrite. |
-| Provider rate limit / 5xx | Non-streaming calls retry with backoff; streaming calls surface a retryable error. |
-| Data dir unwritable | Save errors are shown inline; the editor keeps the text in memory. |
-| Book local settings missing/invalid | The API falls back to the global default preset and models; Book settings can write a fresh local config. |
-| Provider rejects `top_k` | Set Top-K to 0 in the preset or book settings; the field is omitted from the payload. |
-| User scrolls up during execution | The viewport locks; streaming continues; a **Scroll to bottom** control appears until the user returns to the bottom. |
-
-## Auth
-
-Single user. Credentials come from `APP_USERNAME` / `APP_PASSWORD`. A signed HttpOnly JWT session cookie (30 days) is issued after a timing-safe comparison. Login attempts are rate-limited to five per five minutes per IP. `SESSION_SECRET` should be at least 24 random characters; if omitted, a deterministic secret is derived from the credentials. Quote credential values in `.env` when they contain `#`, spaces, or symbols; the env parser treats an unquoted `#` as the start of a comment.
-
-There are no accounts, password resets, or multi-tenant boundaries. Do not expose this app to untrusted users.
-
-## API
-
-| Route | Purpose |
-| --- | --- |
-| `POST /api/auth/login` | Credential check, session cookie |
-| `GET/POST /api/providers` | List or add provider connections |
-| `PUT/DELETE /api/providers/:id` | Edit or remove a provider connection |
-| `PATCH /api/providers/:id` | Flag image-capable models for a provider |
-| `POST /api/providers/test` | Test a provider endpoint and list its models |
-| `PUT /api/config/models` | Save the default Planner, Executor, Summarizer, and Image Prompter models |
-| `POST /api/drafts` | Start a brainstorm draft |
-| `POST /api/drafts/:id/finalize` | Publish a manually written premise and auto-title if blank |
-| `POST /api/ai/image-prompt` | Write an illustration or cover prompt with the Image Prompter |
-| `POST /api/ai/title` | Generate a book or chapter title from its configured context |
-| `POST /api/ai/planner` | SSE Planner chat (draft premise or chapter) |
-| `POST /api/ai/premise` | Summarize premise, auto-title, publish draft |
-| `POST /api/ai/execute` | SSE Executor chapter draft |
-| `POST /api/ai/summarize` | Summarize a chapter into the vault |
-| `GET/POST /api/presets` | List or create global presets |
-| `PUT/DELETE /api/presets/:id` | Edit or delete a preset |
-| `POST /api/presets/:id/default` | Set the default preset for new books |
-| `GET /api/models` | List models grouped by provider |
-| `POST /api/novels/:slug/pages` | Add a chapter or illustration page |
-| `GET /api/novels/:slug/backup` | Download a JSON backup of one book |
-| `POST /api/novels/import` | Validate and import a book backup |
-| `DELETE /api/novels/:slug/chapters/:n` | Delete a chapter or illustration page |
-| `PUT /api/novels/:slug/characters` | Save a manually edited character sheet |
-| `POST /api/novels/:slug/characters/generate` | Extract characters with the Planner |
-| `POST /api/generate-image` | Generate and persist an illustration |
-| `POST /api/generate-cover` | Generate and persist a book cover |
-| `GET /api/novels/:slug/illustrations/:file` | Serve a stored illustration or cover |
-| `GET/PUT /api/novels/:slug/config` | Read or save the active book?s local config |
-| `PATCH /api/novels/:slug` | Edit metadata or archive/restore a book |
-| `DELETE /api/novels/:slug?permanent=1` | Permanently remove a book and its files |
-| `PUT /api/novels/:slug/chapters/:n` | Save Markdown with optimistic concurrency |
-| `POST /api/novels/:slug/chapters/:n/advance` | Create/open the next chapter |
-| `GET /api/novels/:slug/export?format=md\|docx\|html` | Export the book or one chapter |
-
-SSE events: `meta`, `delta`, `done`, `error`, plus heartbeat comments. Upstream OpenAI-format streams are normalized server-side; the browser never sees the provider key.
-
-## Security notes
-
-- `vibedraft.db` stores the provider key in plaintext inside your volume. That is the price of a lightweight, self-hosted install. Protect the volume and its backups. Back up the database with the app stopped, or with SQLite's backup API; WAL files must be included.
-- HTML export is sanitized before writing.
-- All storage paths are validated against the data root; slugs and chapter numbers are strict.
-- API mutations check same-origin. The session cookie is HttpOnly + SameSite=Lax.
-- Prompts and manuscript content are sent only to the provider you configure.
-
-## Commands
-
-```bash
-npm run dev        # development
-npm run build      # production build
-npm run start      # run the production build
-npm run lint       # ESLint
-npm run typecheck  # tsc --noEmit
-npm run test       # Vitest
-npm run mock-ai    # local OpenAI-compatible mock on :8787
-npm run seed:demo  # synthetic demo book + mock config
-npm run check:ui   # Playwright smoke test of setup, create, execute, summary, continue
-npm run check:presets # Playwright smoke test of presets and per-book settings
-npm run shots      # design captures into .impeccable/review
-```
-
-## Verification
-
-```bash
-npm run lint && npm run typecheck && npm run test
-```
-
-The UI smoke tests need three processes: `npm run dev`, `npm run mock-ai`, and a seeded demo (`npm run seed:demo`). `check:ui` exercises setup, premise-first creation, execute, summary, and continue. `check:presets` exercises preset creation, copy-on-write, the new-book picker, and per-book model/prompt overrides. It is idempotent but creates a preset each run; reseed for a clean demo.
-
-## Design
-
-The visual system is documented in [DESIGN.md](DESIGN.md). It is an Operate surface: a lit manuscript page on an ink-blue desk, amber for machine action, serif for prose only. The surface brief and direction contract live in `.impeccable/surfaces/`.
-
-## Scope
-
-Shipped: VibeDraft branding; premise-first creation; isolated chapter chats; dynamic vault injection; global preset library with per-role prompts and sampling parameters; copy-on-write book configs; per-book model/prompt overrides; SSE planning/drafting with reasoning parsing, non-stealing stream scroll, and persistent stream state across navigation; message regeneration, version switching, per-version deletion, and prompt editing; reading comfort toolbar with browser-local theme, 12?24px size, typeface, and page width; background summaries with retry/skip; autosave with conflict handling; reading mode; outline view; Markdown/DOCX/HTML export; trash-safe deletion; SQLite persistence; Docker deployment.
-
-Deferred: real-time collaboration, editor sharing links, voice/style memory, and a full version-comparison UI. Chapter history snapshots are already written to disk, so comparison can be added without a migration.
+**Write the book. Keep the book.**

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -45,8 +45,14 @@ export function PaginatedReader({
   const [pageWidth, setPageWidth] = useState(0);
   const [pageCount, setPageCount] = useState(1);
   const [page, setPage] = useState(Math.max(0, initialPage));
+  const [paginationState, setPaginationState] = useState({
+    chapter: chapter.number,
+    ready: false,
+  });
+  const paginated =
+    paginationState.chapter === chapter.number && paginationState.ready;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
     const update = () => setPageWidth(Math.max(1, Math.floor(viewport.clientWidth)));
@@ -56,7 +62,7 @@ export function PaginatedReader({
     return () => observer.disconnect();
   }, [chapter.number, preferences.fontFamily, preferences.fontSize, preferences.pageWidth]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = contentRef.current;
     if (!element || !pageWidth) return;
     const update = () => {
@@ -66,6 +72,7 @@ export function PaginatedReader({
       );
       setPageCount(nextCount);
       setPage((current) => Math.min(current, nextCount - 1));
+      setPaginationState({ chapter: chapter.number, ready: true });
     };
     update();
     const observer = new ResizeObserver(update);
@@ -124,7 +131,7 @@ export function PaginatedReader({
       >
         <div
           ref={viewportRef}
-          className="min-h-0 flex-1 overflow-hidden"
+          className="relative min-h-0 flex-1 overflow-hidden"
           onTouchStart={(event) => {
             touchStartX.current = event.touches[0]?.clientX ?? null;
           }}
@@ -137,6 +144,16 @@ export function PaginatedReader({
             else previousPage();
           }}
         >
+          {!paginated ? (
+            <div
+              className="absolute inset-0 z-10"
+              style={{
+                backgroundColor:
+                  preferences.theme === "dark" ? "#10161e" : "#f5eedf",
+              }}
+              aria-hidden="true"
+            />
+          ) : null}
           {pageWidth ? (
             <div
               ref={contentRef}
@@ -147,6 +164,7 @@ export function PaginatedReader({
                 columnGap: `${COLUMN_GAP}px`,
                 columnFill: "auto",
                 transform: `translateX(-${page * (pageWidth + COLUMN_GAP)}px)`,
+                visibility: paginated ? "visible" : "hidden",
               }}
             >
               <div className="flex items-center gap-2">
