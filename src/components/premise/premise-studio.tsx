@@ -195,6 +195,7 @@ export function PremiseStudio({
             onDeleteMessage={chat.deleteMessage}
             onSwitchVersion={chat.switchVersion}
             onEditMessage={chat.editMessage}
+            onEditAssistant={chat.editAssistant}
             disabled={phase !== "chat"}
             placeholder="What is this book about?"
             empty={

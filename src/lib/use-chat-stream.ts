@@ -189,6 +189,13 @@ export function usePlannerStream({
     [baseBody, endpoint, mutate, streamKey],
   );
 
+  const editAssistant = useCallback(
+    async (message: ChatMessage, content: string) => {
+      await mutate(message, { action: "editAssistant", content }, "PATCH");
+    },
+    [mutate],
+  );
+
   return {
     messages,
     streaming,
@@ -202,5 +209,6 @@ export function usePlannerStream({
     switchVersion: mutateEndpoint ? switchVersion : undefined,
     deleteMessage: mutateEndpoint ? deleteMessage : undefined,
     editMessage: mutateEndpoint ? editMessage : undefined,
+    editAssistant: mutateEndpoint ? editAssistant : undefined,
   };
 }

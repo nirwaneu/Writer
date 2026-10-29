@@ -757,6 +757,29 @@ function WorkspaceSession({
     }
   }
 
+  async function saveChapterSummaryEdit(page: Chapter, summary: string) {
+    try {
+      const response = await fetch(`/api/novels/${slug}/chapters/${page.number}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ summary }),
+      });
+      const payload = (await response.json()) as {
+        outline?: Outline;
+        error?: { message?: string };
+      };
+      if (!response.ok || !payload.outline) {
+        toast.error(payload.error?.message || "The summary could not be saved.");
+        return;
+      }
+      setOutline(payload.outline);
+      toast.success("Summary saved.");
+      router.refresh();
+    } catch {
+      toast.error("Could not reach the app server.");
+    }
+  }
+
   async function deletePage(page: Chapter) {
     setDeletingPageNumber(page.number);
     try {
@@ -1169,6 +1192,7 @@ function WorkspaceSession({
             characterActions={characterActions}
             onDeletePage={(page) => void deletePage(page)}
             deletingPageNumber={deletingPageNumber}
+            onSaveSummary={saveChapterSummaryEdit}
           />
         </div>
       </div>
@@ -1204,6 +1228,7 @@ function WorkspaceSession({
           onDeleteMessage={planner.deleteMessage}
           onSwitchVersion={planner.switchVersion}
           onEditMessage={planner.editMessage}
+          onEditAssistant={planner.editAssistant}
           disabled={executing}
           placeholder={
             planReady
@@ -1348,6 +1373,7 @@ function WorkspaceSession({
             characterActions={characterActions}
             onDeletePage={(page) => void deletePage(page)}
             deletingPageNumber={deletingPageNumber}
+            onSaveSummary={saveChapterSummaryEdit}
           />
           <p className="mt-6 border-t border-border pt-3 text-[10.5px] leading-relaxed text-muted-foreground/70">
             The vault lives in SQLite. Every Planner and Executor call receives this context;

@@ -4,6 +4,7 @@ import { AppError } from "@/lib/errors";
 import { readNovelChat, saveNovelChat } from "@/lib/storage/chats";
 import {
   deleteMessageVersion,
+  editAssistantMessage,
   editUserMessage,
   switchMessageVersion,
 } from "@/lib/chat/messages";
@@ -25,6 +26,10 @@ function parseScope(raw: string): "premise" | number {
 const patchSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("switch"), alternativeId: z.string().min(1) }),
   z.object({ action: z.literal("edit"), content: z.string().trim().min(1).max(20_000) }),
+  z.object({
+    action: z.literal("editAssistant"),
+    content: z.string().trim().min(1).max(200_000),
+  }),
 ]);
 
 export async function PATCH(request: Request, { params }: Params) {
@@ -36,7 +41,9 @@ export async function PATCH(request: Request, { params }: Params) {
     const next =
       input.action === "switch"
         ? switchMessageVersion(chat, messageId, input.alternativeId)
-        : editUserMessage(chat, messageId, input.content);
+        : input.action === "edit"
+          ? editUserMessage(chat, messageId, input.content)
+          : editAssistantMessage(chat, messageId, input.content);
     const saved = await saveNovelChat(slug, next);
     return jsonOk({ chat: saved });
   } catch (error) {

@@ -33,7 +33,7 @@ export const illustrationSchema = z.object({
 export const chapterSchema = z.object({
   number: z.number().int().positive(),
   title: z.string().min(1).max(200),
-  summary: z.string().max(20_000).default(""),
+  summary: z.string().default(""),
   status: chapterStatusSchema.default("planned"),
   wordCount: z.number().int().nonnegative().default(0),
   summaryStale: z.boolean().default(false),

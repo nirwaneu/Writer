@@ -3,6 +3,7 @@ import { assertSameOrigin, errorResponse, jsonOk, parseBody } from "@/lib/api";
 import { readDraftChat, saveDraftChat } from "@/lib/storage/chats";
 import {
   deleteMessageVersion,
+  editAssistantMessage,
   editUserMessage,
   switchMessageVersion,
 } from "@/lib/chat/messages";
@@ -15,6 +16,10 @@ type Params = { params: Promise<{ id: string; messageId: string }> };
 const patchSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("switch"), alternativeId: z.string().min(1) }),
   z.object({ action: z.literal("edit"), content: z.string().trim().min(1).max(20_000) }),
+  z.object({
+    action: z.literal("editAssistant"),
+    content: z.string().trim().min(1).max(200_000),
+  }),
 ]);
 
 export async function PATCH(request: Request, { params }: Params) {
@@ -26,7 +31,9 @@ export async function PATCH(request: Request, { params }: Params) {
     const next =
       input.action === "switch"
         ? switchMessageVersion(chat, messageId, input.alternativeId)
-        : editUserMessage(chat, messageId, input.content);
+        : input.action === "edit"
+          ? editUserMessage(chat, messageId, input.content)
+          : editAssistantMessage(chat, messageId, input.content);
     const saved = await saveDraftChat(id, next);
     return jsonOk({ chat: saved });
   } catch (error) {

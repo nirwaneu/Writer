@@ -42,6 +42,7 @@ export function ChatThread({
   onDeleteMessage,
   onSwitchVersion,
   onEditMessage,
+  onEditAssistant,
   disabled = false,
   placeholder = "Write to the Planner…",
   empty,
@@ -61,6 +62,7 @@ export function ChatThread({
   onDeleteMessage?: (message: ChatMessage) => void;
   onSwitchVersion?: (message: ChatMessage, alternativeId: string) => void;
   onEditMessage?: (message: ChatMessage, content: string) => void | Promise<void>;
+  onEditAssistant?: (message: ChatMessage, content: string) => void | Promise<void>;
   disabled?: boolean;
   placeholder?: string;
   empty?: React.ReactNode;
@@ -154,6 +156,7 @@ export function ChatThread({
               onDeleteMessage={onDeleteMessage}
               onSwitchVersion={onSwitchVersion}
               onEditMessage={onEditMessage}
+              onEditAssistant={onEditAssistant}
             />
           ))}
 
@@ -255,6 +258,7 @@ function MessageBlock({
   onDeleteMessage,
   onSwitchVersion,
   onEditMessage,
+  onEditAssistant,
 }: {
   message: ChatMessage;
   compact: boolean;
@@ -263,6 +267,7 @@ function MessageBlock({
   onDeleteMessage?: (message: ChatMessage) => void;
   onSwitchVersion?: (message: ChatMessage, alternativeId: string) => void;
   onEditMessage?: (message: ChatMessage, content: string) => void | Promise<void>;
+  onEditAssistant?: (message: ChatMessage, content: string) => void | Promise<void>;
 }) {
   const isUser = message.role === "user";
   const alternatives: ChatAlternative[] = message.alternatives?.length
@@ -290,10 +295,15 @@ function MessageBlock({
   const { behavior } = useEnterBehavior();
 
   async function saveEdit() {
-    if (!onEditMessage) return;
     const trimmed = editText.trim();
     if (!trimmed) return;
-    await onEditMessage(message, trimmed);
+    if (isUser) {
+      if (!onEditMessage) return;
+      await onEditMessage(message, trimmed);
+    } else {
+      if (!onEditAssistant) return;
+      await onEditAssistant(message, trimmed);
+    }
     setEditing(false);
   }
 
@@ -377,6 +387,36 @@ function MessageBlock({
             {message.content}
           </p>
         )
+      ) : editing ? (
+        <div className="space-y-2">
+          <textarea
+            value={editText}
+            onChange={(event) => setEditText(event.target.value)}
+            rows={6}
+            className="w-full resize-y rounded-md border border-input bg-[#0c1218] px-3 py-2 text-[13px] leading-relaxed text-foreground outline-none focus:border-[#5b4a2c] focus:ring-2 focus:ring-ring/30"
+            autoFocus
+          />
+          <p className="text-[10.5px] leading-relaxed text-muted-foreground">
+            Editing the saved Planner response. The Executor reads this text when it writes.
+          </p>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={() => void saveEdit()} disabled={!editText.trim()}>
+              <Check />
+              Save
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setEditing(false);
+                setEditText(active?.content ?? message.content);
+              }}
+            >
+              <X />
+              Cancel
+            </Button>
+          </div>
+        </div>
       ) : (
         <>
           {active?.reasoning ? <ReasoningBlock reasoning={active.reasoning} /> : null}
@@ -417,6 +457,22 @@ function MessageBlock({
               <ChevronRight className="size-3" />
             </button>
           </div>
+        ) : null}
+
+        {!isUser && onEditAssistant && !editing ? (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Edit response"
+            title="Edit saved response"
+            disabled={streaming}
+            onClick={() => {
+              setEditText(active?.content ?? message.content);
+              setEditing(true);
+            }}
+          >
+            <PencilLine className="size-3.5" />
+          </Button>
         ) : null}
 
         {!isUser && onRegenerate ? (

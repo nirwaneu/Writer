@@ -1,11 +1,13 @@
 import { z } from "zod";
 import { assertSameOrigin, errorResponse, jsonOk, parseBody } from "@/lib/api";
+import { AppError } from "@/lib/errors";
 import {
   deletePage,
   ensureChapter,
   getChapterContent,
   getNovel,
   saveChapterContent,
+  saveChapterSummary,
   updateChapterTitle,
 } from "@/lib/storage/novels";
 
@@ -50,16 +52,30 @@ export async function PUT(request: Request, { params }: Params) {
   }
 }
 
-const titleSchema = z.object({
-  title: z.string().trim().min(1).max(200),
-});
+const patchSchema = z
+  .object({
+    title: z.string().trim().min(1).max(200).optional(),
+    summary: z.string().max(1_000_000).optional(),
+  })
+  .refine((value) => value.title !== undefined || value.summary !== undefined, {
+    message: "Provide a title or a summary to update.",
+  });
 
 export async function PATCH(request: Request, { params }: Params) {
   try {
     assertSameOrigin(request);
     const { slug, number } = await params;
-    const input = await parseBody(request, titleSchema);
-    const outline = await updateChapterTitle(slug, Number(number), input.title);
+    const input = await parseBody(request, patchSchema);
+    if (input.title === undefined && input.summary === undefined) {
+      throw new AppError("BAD_REQUEST", "Provide a title or a summary to update.", {
+        status: 400,
+      });
+    }
+
+    const outline =
+      input.summary !== undefined
+        ? await saveChapterSummary(slug, Number(number), input.summary, input.title)
+        : await updateChapterTitle(slug, Number(number), input.title as string);
     const chapter = outline.chapters.find((item) => item.number === Number(number)) ?? null;
     return jsonOk({ chapter, outline });
   } catch (error) {

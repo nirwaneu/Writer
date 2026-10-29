@@ -128,6 +128,30 @@ export function editUserMessage(chat: Chat, messageId: string, content: string):
   };
 }
 
+export function editAssistantMessage(chat: Chat, messageId: string, content: string): Chat {
+  const { message } = findMessage(chat, messageId);
+  if (message.role !== "assistant") {
+    throw new AppError("BAD_REQUEST", "Only Planner responses can be edited here.", {
+      status: 400,
+    });
+  }
+  const trimmed = content.trim();
+  if (!trimmed) {
+    throw new AppError("BAD_REQUEST", "The message is empty.", { status: 400 });
+  }
+  const alternatives = alternativesFor(message);
+  const activeId = message.activeAlternativeId ?? alternatives[0].id;
+  const nextAlternatives = alternatives.map((alternative) =>
+    alternative.id === activeId ? { ...alternative, content: trimmed } : alternative,
+  );
+  const next = withActiveAlternative(message, nextAlternatives, activeId);
+  return {
+    ...chat,
+    messages: chat.messages.map((item) => (item.id === messageId ? next : item)),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 export function updateAssistantAlternative(
   chat: Chat,
   messageId: string,

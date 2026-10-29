@@ -10,6 +10,8 @@ import {
   markSummaryFailed,
   saveChapterSummary,
 } from "@/lib/storage/novels";
+import { readNovelChat } from "@/lib/storage/chats";
+import type { Chat } from "@/lib/schemas";
 import {
   buildChapterSummaryMessages,
   buildChunkSummaryMessages,
@@ -31,12 +33,21 @@ const schema = z.object({
   chapter: z.number().int().positive(),
 });
 
+function latestPlannerResponse(chat: Chat): string {
+  for (let index = chat.messages.length - 1; index >= 0; index -= 1) {
+    const message = chat.messages[index];
+    if (message.role === "assistant" && !message.failed && message.content.trim()) {
+      return message.content.trim();
+    }
+  }
+  return "";
+}
+
 function cleanSummary(raw: string): string {
   return raw
     .replace(/^\s*(summary|chapter summary)\s*[:\-]\s*/i, "")
     .replace(/^#+\s*/gm, "")
-    .trim()
-    .slice(0, 4_000);
+    .trim();
 }
 
 function cleanChapterTitle(raw: string): string {
@@ -46,7 +57,7 @@ function cleanChapterTitle(raw: string): string {
     .replace(/^["'“”‘’#*\s]+|["'“”‘’#*.\s]+$/g, "")
     .replace(/^chapter\s+\d+\s*[:\-—]\s*/i, "")
     .replace(/\s+/g, " ")
-    .slice(0, 120)
+    .slice(0, 200)
     .trim();
 }
 
@@ -65,12 +76,17 @@ export async function POST(request: Request) {
     const global = await requireConfig();
     await ensureChapter(input.slug, input.chapter);
     const outline = await getNovel(input.slug);
-    const text = await getChapterContent(input.slug, input.chapter);
+    const chat = await readNovelChat(input.slug, input.chapter);
+    const plannerText = latestPlannerResponse(chat);
+    const chapterText = await getChapterContent(input.slug, input.chapter);
+    const text = plannerText || chapterText;
 
     if (!text.trim()) {
-      throw new AppError("BAD_REQUEST", "There is no chapter text to summarize yet.", {
-        status: 400,
-      });
+      throw new AppError(
+        "BAD_REQUEST",
+        "There is no Planner response or chapter text to summarize yet.",
+        { status: 400 },
+      );
     }
 
     const bookConfig = (await getBookConfig(input.slug)).config;
@@ -82,8 +98,8 @@ export async function POST(request: Request) {
       apiKey: summarizerRoute.provider.apiKey,
       model,
       params: summarizerRole.params,
-      maxTokens: 700,
-      timeoutMs: 120_000,
+      maxTokens: 2_000,
+      timeoutMs: 180_000,
       retries: 2,
     };
 
@@ -104,7 +120,7 @@ export async function POST(request: Request) {
               summarizerRole.systemPrompt,
               roleInjections(summarizerRole),
             ),
-            maxTokens: 420,
+            maxTokens: 1_200,
           });
           partials.push(result.content.trim());
         }

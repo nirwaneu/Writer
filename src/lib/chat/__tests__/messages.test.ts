@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addAssistantAlternative,
   deleteMessageVersion,
+  editAssistantMessage,
   editUserMessage,
   switchMessageVersion,
 } from "@/lib/chat/messages";
@@ -92,5 +93,32 @@ describe("edit user message", () => {
     const edited = editUserMessage(chat(), "u1", "Edited prompt");
     expect(edited.messages).toHaveLength(1);
     expect(edited.messages[0]).toEqual({ ...user, content: "Edited prompt" });
+  });
+});
+
+describe("edit assistant message", () => {
+  it("edits the active response in place without touching later messages", () => {
+    const edited = editAssistantMessage(chat(), "a1", "Revised answer");
+    const message = edited.messages.find((item) => item.id === "a1")!;
+    expect(message.content).toBe("Revised answer");
+    expect(edited.messages).toHaveLength(4);
+    expect(edited.messages[3]).toEqual(laterAssistant);
+  });
+
+  it("updates the active alternative when versions exist", () => {
+    const added = addAssistantAlternative(chat(), "a1", {
+      id: "a1-v2",
+      content: "Second answer",
+      createdAt: "2026-01-01T00:04:00.000Z",
+    });
+    const edited = editAssistantMessage(added, "a1", "Revised second answer");
+    const message = edited.messages.find((item) => item.id === "a1")!;
+    expect(message.content).toBe("Revised second answer");
+    expect(message.alternatives?.[1].content).toBe("Revised second answer");
+    expect(message.alternatives?.[0].content).toBe("First answer");
+  });
+
+  it("rejects user messages", () => {
+    expect(() => editAssistantMessage(chat(), "u1", "Nope")).toThrow();
   });
 });
