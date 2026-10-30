@@ -100,6 +100,7 @@ export const generationParamsSchema = z.object({
   frequencyPenalty: z.number().min(-2).max(2).default(0),
   presencePenalty: z.number().min(-2).max(2).default(0),
   reasoningEffort: z.string().max(100).default(""),
+  advancedJson: z.string().max(100_000).default(""),
 });
 
 export const roleConfigSchema = z.object({

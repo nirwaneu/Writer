@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { generationFields } from "@/lib/ai/client";
+import { generationFields, parseAdvancedParams } from "@/lib/ai/client";
+
+const BASE = {
+  temperature: 0.5,
+  topP: 1,
+  topK: 0,
+  frequencyPenalty: 0,
+  presencePenalty: 0,
+  reasoningEffort: "",
+  advancedJson: "",
+};
 
 describe("generationFields", () => {
   it("maps every custom parameter into the request body", () => {
@@ -12,6 +22,7 @@ describe("generationFields", () => {
           frequencyPenalty: 0.2,
           presencePenalty: -0.1,
           reasoningEffort: "",
+          advancedJson: "",
         },
         0.7,
       ),
@@ -25,39 +36,45 @@ describe("generationFields", () => {
   });
 
   it("omits top_k when disabled", () => {
-    const fields = generationFields(
-      {
-        temperature: 0.5,
-        topP: 1,
-        topK: 0,
-        frequencyPenalty: 0,
-        presencePenalty: 0,
-        reasoningEffort: "",
-      },
-      0.7,
-    );
+    const fields = generationFields({ ...BASE, temperature: 0.5 }, 0.7);
     expect(fields).not.toHaveProperty("top_k");
     expect(fields.top_p).toBe(1);
   });
 
   it("sends reasoning_effort only when non-empty", () => {
-    const base = {
-      temperature: 0.5,
-      topP: 1,
-      topK: 0,
-      frequencyPenalty: 0,
-      presencePenalty: 0,
-    };
-
-    expect(generationFields({ ...base, reasoningEffort: "  high  " }, 0.7)).toMatchObject({
+    expect(generationFields({ ...BASE, reasoningEffort: "  high  " }, 0.7)).toMatchObject({
       reasoning_effort: "high",
     });
-    expect(generationFields({ ...base, reasoningEffort: "   " }, 0.7)).not.toHaveProperty(
+    expect(generationFields({ ...BASE, reasoningEffort: "   " }, 0.7)).not.toHaveProperty(
       "reasoning_effort",
     );
   });
 
   it("falls back to a temperature when no preset params exist", () => {
     expect(generationFields(undefined, 0.85)).toEqual({ temperature: 0.85 });
+  });
+});
+
+describe("parseAdvancedParams", () => {
+  it("returns an empty object for blank input", () => {
+    expect(parseAdvancedParams(undefined)).toEqual({});
+    expect(parseAdvancedParams("   ")).toEqual({});
+  });
+
+  it("parses a JSON object", () => {
+    expect(parseAdvancedParams('{"temperature":0.9,"safetySettings":[]}')).toEqual({
+      temperature: 0.9,
+      safetySettings: [],
+    });
+  });
+
+  it("ignores invalid JSON without throwing", () => {
+    expect(parseAdvancedParams("{not json")).toEqual({});
+  });
+
+  it("ignores non-object JSON without throwing", () => {
+    expect(parseAdvancedParams("[1,2,3]")).toEqual({});
+    expect(parseAdvancedParams("42")).toEqual({});
+    expect(parseAdvancedParams("null")).toEqual({});
   });
 });

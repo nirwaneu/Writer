@@ -54,6 +54,7 @@ export const DEFAULT_ROLE_PARAMS = {
     frequencyPenalty: 0,
     presencePenalty: 0,
     reasoningEffort: "",
+    advancedJson: "",
   },
   executor: {
     temperature: 0.85,
@@ -62,6 +63,7 @@ export const DEFAULT_ROLE_PARAMS = {
     frequencyPenalty: 0,
     presencePenalty: 0,
     reasoningEffort: "",
+    advancedJson: "",
   },
   summarizer: {
     temperature: 0.3,
@@ -70,6 +72,7 @@ export const DEFAULT_ROLE_PARAMS = {
     frequencyPenalty: 0,
     presencePenalty: 0,
     reasoningEffort: "",
+    advancedJson: "",
   },
   imagePrompter: { ...DEFAULT_IMAGE_PROMPTER_PARAMS },
   titleGenerator: { ...DEFAULT_TITLE_PARAMS },

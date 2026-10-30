@@ -4,11 +4,12 @@ import { useId } from "react";
 import { Info } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { GenerationParams } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 
-type ParamKey = Exclude<keyof GenerationParams, "reasoningEffort">;
+type ParamKey = Exclude<keyof GenerationParams, "reasoningEffort" | "advancedJson">;
 
 const FIELDS: Array<{
   key: ParamKey;
@@ -104,6 +105,77 @@ export function GenerationParamsFields({
         value={params.reasoningEffort}
         onChange={(value) => onChange({ ...params, reasoningEffort: value })}
       />
+      <AdvancedJsonField
+        value={params.advancedJson ?? ""}
+        onChange={(value) => onChange({ ...params, advancedJson: value })}
+      />
+    </div>
+  );
+}
+
+function jsonError(value: string): string | null {
+  if (!value.trim()) return null;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return "Expected a JSON object.";
+    }
+    return null;
+  } catch (error) {
+    return (error as Error).message;
+  }
+}
+
+function AdvancedJsonField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const id = useId();
+  const error = jsonError(value);
+  return (
+    <div className="rounded-md border border-border bg-[#0c1218] px-3 py-2.5">
+      <div className="flex items-center gap-1.5">
+        <Label htmlFor={`advanced-${id}`} className="text-[12px]">
+          Advanced API Parameters (JSON)
+        </Label>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              aria-label="About advanced API parameters"
+              className="rounded p-0.5 text-muted-foreground/70 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Info className="size-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-80 text-[11.5px] leading-relaxed">
+            Raw JSON merged into the root of the request payload after the standard fields.
+            Matching keys override the built-in values. Invalid JSON is ignored at request time.
+          </TooltipContent>
+        </Tooltip>
+      </div>
+      <Textarea
+        id={`advanced-${id}`}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        rows={6}
+        spellCheck={false}
+        placeholder={'{\n  "temperature": 0.9,\n  "safetySettings": []\n}'}
+        className="mt-2 min-h-28 resize-y font-mono text-[11.5px] leading-relaxed"
+      />
+      <p
+        className={cn(
+          "mt-1.5 text-[10px] leading-relaxed",
+          error ? "text-[#f2937f]" : "text-muted-foreground",
+        )}
+      >
+        {error
+          ? `Invalid JSON: ${error}. Requests will ignore these parameters.`
+          : "Merged into the root of every Planner, Executor, and Summarizer request for this role."}
+      </p>
     </div>
   );
 }

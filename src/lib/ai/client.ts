@@ -22,6 +22,23 @@ export function generationFields(
   };
 }
 
+export function parseAdvancedParams(raw: string | undefined): Record<string, unknown> {
+  if (!raw || !raw.trim()) return {};
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      console.warn("[ai] Advanced API parameters must be a JSON object; ignoring them.");
+      return {};
+    }
+    return parsed as Record<string, unknown>;
+  } catch (error) {
+    console.warn(
+      `[ai] Could not parse advanced API parameters; ignoring them. ${(error as Error).message}`,
+    );
+    return {};
+  }
+}
+
 export type ChatResult = {
   content: string;
   model: string;
@@ -431,6 +448,7 @@ export async function chatCompletion(
     retries = 2,
   } = options;
   const { chat } = resolveEndpoints(baseUrl);
+  const advanced = parseAdvancedParams(params?.advancedJson);
   let lastError: AppError | null = null;
   let requestMaxTokens = maxTokens;
 
@@ -445,6 +463,7 @@ export async function chatCompletion(
           ...generationFields(params, temperature),
           stream: false,
           ...(requestMaxTokens ? { max_tokens: requestMaxTokens } : {}),
+          ...advanced,
         }),
         signal: composeSignal(signal, timeoutMs),
         cache: "no-store",
@@ -608,6 +627,7 @@ export async function openChatStream(options: {
     retries = 1,
   } = options;
   const { chat } = resolveEndpoints(baseUrl);
+  const advanced = parseAdvancedParams(params?.advancedJson);
   let lastError: AppError | null = null;
 
   for (let attempt = 0; attempt <= retries; attempt += 1) {
@@ -629,6 +649,7 @@ export async function openChatStream(options: {
             ...generationFields(params, temperature),
             stream: true,
             ...(maxTokens ? { max_tokens: maxTokens } : {}),
+            ...advanced,
           }),
           cache: "no-store",
         },

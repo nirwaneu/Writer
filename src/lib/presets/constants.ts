@@ -27,6 +27,7 @@ export const DEFAULT_TITLE_PARAMS = {
   frequencyPenalty: 0,
   presencePenalty: 0,
   reasoningEffort: "",
+  advancedJson: "",
 } as const;
 
 export const DEFAULT_IMAGE_PROMPTER_PROMPT = `You are an expert prompt engineer for AI image models such as Flux, SDXL, and DALL-E.
@@ -42,5 +43,6 @@ export const DEFAULT_IMAGE_PROMPTER_PARAMS = {
   frequencyPenalty: 0,
   presencePenalty: 0,
   reasoningEffort: "",
+  advancedJson: "",
 } as const;
 
