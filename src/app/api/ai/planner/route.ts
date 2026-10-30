@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { assertSameOrigin, errorResponse, parseBody } from "@/lib/api";
+import { assertSameOrigin, errorResponse, jsonOk, parseBody } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { requireConfig } from "@/lib/storage/config";
 import { getBookConfig, getDraftBookConfig } from "@/lib/storage/book-config";
@@ -14,7 +14,7 @@ import {
   saveNovelChat,
 } from "@/lib/storage/chats";
 import { buildPlannerMessages, roleInjections } from "@/lib/ai/prompts";
-import { openChatStream } from "@/lib/ai/client";
+import { buildChatRequestPayload, openChatStream } from "@/lib/ai/client";
 import { parseOpenAIStream, sseResponse } from "@/lib/ai/sse";
 import { acquire, release } from "@/lib/ai/active";
 import { addAssistantAlternative } from "@/lib/chat/messages";
@@ -34,6 +34,8 @@ const schema = z.discriminatedUnion("scope", [
     clientMessageId: z.string().min(1).max(100).optional(),
     regenerateMessageId: z.string().optional(),
     branchUserMessageId: z.string().optional(),
+    debug: z.boolean().optional(),
+    debugPayload: z.record(z.string(), z.unknown()).optional(),
   }),
   z.object({
     scope: z.literal("chapter"),
@@ -44,6 +46,8 @@ const schema = z.discriminatedUnion("scope", [
     clientMessageId: z.string().min(1).max(100).optional(),
     regenerateMessageId: z.string().optional(),
     branchUserMessageId: z.string().optional(),
+    debug: z.boolean().optional(),
+    debugPayload: z.record(z.string(), z.unknown()).optional(),
   }),
 ]);
 
@@ -167,7 +171,7 @@ export async function POST(request: Request) {
           messageText = input.message.trim();
           userMessageId = input.clientMessageId ?? randomUUID();
           const alreadyStored = history.messages.some((message) => message.id === userMessageId);
-          if (!alreadyStored) {
+          if (!alreadyStored && !input.debug) {
             const userMessage: ChatMessage = {
               id: userMessageId,
               role: "user",
@@ -201,6 +205,17 @@ export async function POST(request: Request) {
       const plannerRoute = resolveModelRoute(global, bookConfig.models.planner);
       const model = plannerRoute.model;
 
+      if (input.debug) {
+        const payload = buildChatRequestPayload({
+          model,
+          messages,
+          params: plannerRole.params,
+          stream: true,
+        });
+        release(target.lockKey);
+        return jsonOk({ debug: true, payload });
+      }
+
       return sseResponse(async (send, signal) => {
         let content = "";
         let reasoning = "";
@@ -224,6 +239,7 @@ export async function POST(request: Request) {
             messages,
             signal,
             params: plannerRole.params,
+            ...(input.debugPayload ? { payloadOverride: input.debugPayload } : {}),
           });
 
           for await (const piece of parseOpenAIStream(response.body!)) {

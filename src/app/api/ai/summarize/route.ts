@@ -20,7 +20,7 @@ import {
   splitForSummary,
 } from "@/lib/ai/prompts";
 import { generateTitleText } from "@/lib/ai/title";
-import { chatCompletion } from "@/lib/ai/client";
+import { buildChatRequestPayload, chatCompletion } from "@/lib/ai/client";
 import { acquire, release } from "@/lib/ai/active";
 import { resolveModelRoute } from "@/lib/ai/routing";
 
@@ -31,6 +31,8 @@ export const maxDuration = 300;
 const schema = z.object({
   slug: z.string().min(1),
   chapter: z.number().int().positive(),
+  debug: z.boolean().optional(),
+  debugPayload: z.record(z.string(), z.unknown()).optional(),
 });
 
 function latestPlannerResponse(chat: Chat): string {
@@ -103,24 +105,60 @@ export async function POST(request: Request) {
       retries: 2,
     };
 
+    const chunked = text.length > 40_000;
+    const chunks = chunked ? splitForSummary(text) : [];
+    const firstMessages = chunked
+      ? buildChunkSummaryMessages(
+          outline,
+          input.chapter,
+          chunks[0] ?? text,
+          1,
+          chunks.length,
+          summarizerRole.systemPrompt,
+          roleInjections(summarizerRole),
+        )
+      : buildChapterSummaryMessages(
+          outline,
+          input.chapter,
+          text,
+          summarizerRole.systemPrompt,
+          roleInjections(summarizerRole),
+        );
+
+    if (input.debug) {
+      const payload = buildChatRequestPayload({
+        model,
+        messages: firstMessages,
+        params: summarizerRole.params,
+        maxTokens: chunked ? 1_200 : 2_000,
+        stream: false,
+      });
+      return jsonOk({ debug: true, payload });
+    }
+
     let summary: string;
     try {
-      if (text.length > 40_000) {
-        const chunks = splitForSummary(text);
+      if (chunked) {
         const partials: string[] = [];
         for (let index = 0; index < chunks.length; index += 1) {
           const result = await chatCompletion({
             ...options,
-            messages: buildChunkSummaryMessages(
-              outline,
-              input.chapter,
-              chunks[index],
-              index + 1,
-              chunks.length,
-              summarizerRole.systemPrompt,
-              roleInjections(summarizerRole),
-            ),
+            messages:
+              index === 0
+                ? firstMessages
+                : buildChunkSummaryMessages(
+                    outline,
+                    input.chapter,
+                    chunks[index] ?? "",
+                    index + 1,
+                    chunks.length,
+                    summarizerRole.systemPrompt,
+                    roleInjections(summarizerRole),
+                  ),
             maxTokens: 1_200,
+            ...(index === 0 && input.debugPayload
+              ? { payloadOverride: input.debugPayload }
+              : {}),
           });
           partials.push(result.content.trim());
         }
@@ -138,13 +176,8 @@ export async function POST(request: Request) {
       } else {
         const result = await chatCompletion({
           ...options,
-          messages: buildChapterSummaryMessages(
-            outline,
-            input.chapter,
-            text,
-            summarizerRole.systemPrompt,
-            roleInjections(summarizerRole),
-          ),
+          messages: firstMessages,
+          ...(input.debugPayload ? { payloadOverride: input.debugPayload } : {}),
         });
         summary = result.content;
       }

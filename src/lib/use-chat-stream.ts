@@ -9,6 +9,7 @@ import {
   useStreamStore,
 } from "@/lib/streams/store";
 import { runPlannerStream } from "@/lib/streams/runners";
+import { withDebugPreview } from "@/lib/ai/debug-preview";
 import { createId } from "@/lib/utils";
 
 export function usePlannerStream({
@@ -97,11 +98,20 @@ export function usePlannerStream({
         createdAt: new Date().toISOString(),
       };
       setMessages((current) => [...current, optimistic]);
-      runPlannerStream({
-        key: streamKey,
-        endpoint,
-        body: { ...baseBody, message: text, clientMessageId },
-        mode: "send",
+      const body = { ...baseBody, message: text, clientMessageId };
+      void withDebugPreview(endpoint, body, (finalBody) => {
+        runPlannerStream({
+          key: streamKey,
+          endpoint,
+          body: finalBody,
+          mode: "send",
+        });
+      }).then((fired) => {
+        if (!fired) {
+          setMessages((current) =>
+            current.filter((message) => message.id !== clientMessageId),
+          );
+        }
       });
     },
     [baseBody, endpoint, streamKey, streaming],
@@ -109,12 +119,14 @@ export function usePlannerStream({
 
   const retry = useCallback(() => {
     if (streaming || !entry?.lastBody) return;
-    runPlannerStream({
-      key: streamKey,
-      endpoint,
-      body: entry.lastBody,
-      mode: entry.mode ?? "send",
-      targetMessageId: entry.targetMessageId,
+    void withDebugPreview(endpoint, entry.lastBody, (finalBody) => {
+      runPlannerStream({
+        key: streamKey,
+        endpoint,
+        body: finalBody,
+        mode: entry.mode ?? "send",
+        targetMessageId: entry.targetMessageId,
+      });
     });
   }, [endpoint, entry, streamKey, streaming]);
 
@@ -125,12 +137,15 @@ export function usePlannerStream({
   const regenerate = useCallback(
     (message: ChatMessage) => {
       if (streaming || message.role !== "assistant") return;
-      runPlannerStream({
-        key: streamKey,
-        endpoint,
-        body: { ...baseBody, regenerateMessageId: message.id },
-        mode: "regenerate",
-        targetMessageId: message.id,
+      const body = { ...baseBody, regenerateMessageId: message.id };
+      void withDebugPreview(endpoint, body, (finalBody) => {
+        runPlannerStream({
+          key: streamKey,
+          endpoint,
+          body: finalBody,
+          mode: "regenerate",
+          targetMessageId: message.id,
+        });
       });
     },
     [baseBody, endpoint, streamKey, streaming],
@@ -177,13 +192,16 @@ export function usePlannerStream({
     async (message: ChatMessage, content: string) => {
       const ok = await mutate(message, { action: "edit", content }, "PATCH");
       if (!ok) return;
-      runPlannerStream({
-        key: streamKey,
-        endpoint,
-        body: { ...baseBody, branchUserMessageId: message.id },
-        mode: "branch",
-        targetMessageId: message.id,
-        userMessage: { ...message, content },
+      const body = { ...baseBody, branchUserMessageId: message.id };
+      await withDebugPreview(endpoint, body, (finalBody) => {
+        runPlannerStream({
+          key: streamKey,
+          endpoint,
+          body: finalBody,
+          mode: "branch",
+          targetMessageId: message.id,
+          userMessage: { ...message, content },
+        });
       });
     },
     [baseBody, endpoint, mutate, streamKey],

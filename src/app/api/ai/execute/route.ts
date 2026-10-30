@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { assertSameOrigin, errorResponse, parseBody } from "@/lib/api";
+import { assertSameOrigin, errorResponse, jsonOk, parseBody } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { requireConfig } from "@/lib/storage/config";
 import { getBookConfig } from "@/lib/storage/book-config";
@@ -11,7 +11,7 @@ import {
 } from "@/lib/storage/novels";
 import { readNovelChat } from "@/lib/storage/chats";
 import { buildExecutorMessages, roleInjections } from "@/lib/ai/prompts";
-import { openChatStream } from "@/lib/ai/client";
+import { buildChatRequestPayload, openChatStream } from "@/lib/ai/client";
 import { parseOpenAIStream, sseResponse } from "@/lib/ai/sse";
 import { acquire, release } from "@/lib/ai/active";
 import { resolveModelRoute } from "@/lib/ai/routing";
@@ -25,6 +25,8 @@ const schema = z.object({
   slug: z.string().min(1),
   chapter: z.number().int().positive(),
   confirmOverwrite: z.boolean().optional(),
+  debug: z.boolean().optional(),
+  debugPayload: z.record(z.string(), z.unknown()).optional(),
 });
 
 export async function POST(request: Request) {
@@ -66,13 +68,23 @@ export async function POST(request: Request) {
       );
     }
 
+    const executorRoute = resolveModelRoute(global, bookConfig.models.executor);
+    const model = executorRoute.model;
+
+    if (input.debug) {
+      const payload = buildChatRequestPayload({
+        model,
+        messages,
+        params: executorRole.params,
+        stream: true,
+      });
+      return jsonOk({ debug: true, payload });
+    }
+
     const lockKey = `execute:${input.slug}:${input.chapter}`;
     acquire(lockKey);
 
     try {
-      const executorRoute = resolveModelRoute(global, bookConfig.models.executor);
-      const model = executorRoute.model;
-
       return sseResponse(async (send, signal) => {
         let content = "";
         let reasoning = "";
@@ -96,6 +108,7 @@ export async function POST(request: Request) {
             messages,
             signal,
             params: executorRole.params,
+            ...(input.debugPayload ? { payloadOverride: input.debugPayload } : {}),
           });
 
           for await (const piece of parseOpenAIStream(response.body!)) {

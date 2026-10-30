@@ -39,6 +39,57 @@ export function parseAdvancedParams(raw: string | undefined): Record<string, unk
   }
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function deepMerge(
+  base: Record<string, unknown>,
+  override: Record<string, unknown>,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = { ...base };
+  for (const [key, value] of Object.entries(override)) {
+    const current = result[key];
+    result[key] =
+      isPlainObject(current) && isPlainObject(value)
+        ? deepMerge(current, value)
+        : value;
+  }
+  return result;
+}
+
+export type ChatPayloadOptions = {
+  model: string;
+  messages: ChatInputMessage[];
+  params?: GenerationParams;
+  temperature?: number;
+  maxTokens?: number;
+  stream: boolean;
+};
+
+export function buildChatRequestPayload({
+  model,
+  messages,
+  params,
+  temperature = 0.8,
+  maxTokens,
+  stream,
+}: ChatPayloadOptions): Record<string, unknown> {
+  const base: Record<string, unknown> = {
+    model,
+    messages,
+    ...generationFields(params, temperature),
+    stream,
+    ...(maxTokens ? { max_tokens: maxTokens } : {}),
+  };
+  const merged = deepMerge(base, parseAdvancedParams(params?.advancedJson));
+  return {
+    ...merged,
+    model,
+    messages,
+  };
+}
+
 export type ChatResult = {
   content: string;
   model: string;
@@ -430,6 +481,7 @@ export async function chatCompletion(
     params?: GenerationParams;
     temperature?: number;
     maxTokens?: number;
+    payloadOverride?: Record<string, unknown>;
     signal?: AbortSignal;
     timeoutMs?: number;
     retries?: number;
@@ -443,28 +495,31 @@ export async function chatCompletion(
     params,
     temperature = 0.8,
     maxTokens,
+    payloadOverride,
     signal,
     timeoutMs = DEFAULT_TIMEOUT,
     retries = 2,
   } = options;
   const { chat } = resolveEndpoints(baseUrl);
-  const advanced = parseAdvancedParams(params?.advancedJson);
   let lastError: AppError | null = null;
   let requestMaxTokens = maxTokens;
 
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     try {
+      const payload =
+        payloadOverride ??
+        buildChatRequestPayload({
+          model,
+          messages,
+          params,
+          temperature,
+          maxTokens: requestMaxTokens,
+          stream: false,
+        });
       const response = await fetch(chat, {
         method: "POST",
         headers: authHeaders(apiKey),
-        body: JSON.stringify({
-          model,
-          messages,
-          ...generationFields(params, temperature),
-          stream: false,
-          ...(requestMaxTokens ? { max_tokens: requestMaxTokens } : {}),
-          ...advanced,
-        }),
+        body: JSON.stringify(payload),
         signal: composeSignal(signal, timeoutMs),
         cache: "no-store",
       });
@@ -612,6 +667,7 @@ export async function openChatStream(options: {
   params?: GenerationParams;
   temperature?: number;
   maxTokens?: number;
+  payloadOverride?: Record<string, unknown>;
   signal?: AbortSignal;
   retries?: number;
 }): Promise<Response> {
@@ -623,11 +679,11 @@ export async function openChatStream(options: {
     params,
     temperature = 0.85,
     maxTokens,
+    payloadOverride,
     signal,
     retries = 1,
   } = options;
   const { chat } = resolveEndpoints(baseUrl);
-  const advanced = parseAdvancedParams(params?.advancedJson);
   let lastError: AppError | null = null;
 
   for (let attempt = 0; attempt <= retries; attempt += 1) {
@@ -638,19 +694,22 @@ export async function openChatStream(options: {
       });
     }
     try {
+      const payload =
+        payloadOverride ??
+        buildChatRequestPayload({
+          model,
+          messages,
+          params,
+          temperature,
+          maxTokens,
+          stream: true,
+        });
       const response = await fetchStreamWithHeaderTimeout(
         chat,
         {
           method: "POST",
           headers: { ...authHeaders(apiKey), Accept: "text/event-stream" },
-          body: JSON.stringify({
-            model,
-            messages,
-            ...generationFields(params, temperature),
-            stream: true,
-            ...(maxTokens ? { max_tokens: maxTokens } : {}),
-            ...advanced,
-          }),
+          body: JSON.stringify(payload),
           cache: "no-store",
         },
         signal,

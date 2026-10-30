@@ -55,6 +55,7 @@ import { Label } from "@/components/ui/label";
 import { ChatThread } from "@/components/chat/chat-thread";
 import { BookSettingsDialog } from "@/components/workspace/book-settings-dialog";
 import { AddPageMenu } from "@/components/workspace/add-page-menu";
+import { DebugModeToggle } from "@/components/debug/debug-mode-toggle";
 import { MarkdownEditor } from "@/components/editor/markdown-editor";
 import { OutlineView } from "@/components/outline/outline-view";
 import { StatusDot } from "@/components/status-dot";
@@ -66,6 +67,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { chapterStatusMeta } from "@/lib/chapter-status";
 import { usePlannerStream } from "@/lib/use-chat-stream";
 import { useExecutorStream } from "@/lib/streams/use-executor-stream";
+import { withDebugPreview } from "@/lib/ai/debug-preview";
 import { modelDisplayId } from "@/lib/ai/routing";
 import { chapterDisplayNumber, chapterDisplayTitle, pageKindLabel } from "@/lib/pages";
 import {
@@ -411,30 +413,37 @@ function WorkspaceSession({
   const runSummary = useCallback(async () => {
     setSummaryState("running");
     setSummaryError(null);
-    try {
-      const response = await fetch("/api/ai/summarize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug, chapter: chapterNumber }),
-      });
-      const payload = (await response.json()) as {
-        outline?: Outline;
-        error?: { message?: string };
-      };
-      if (!response.ok || !payload.outline) {
-        setSummaryState("failed");
-        setSummaryError(payload.error?.message || "The chapter could not be summarized.");
-        await refreshOutline();
-        return;
-      }
-      setOutline(payload.outline);
-      setSummaryState("saved");
-      toast.success("Chapter summary and title saved.");
-    } catch {
-      setSummaryState("failed");
-      setSummaryError("Could not reach the app server while summarizing.");
-      await refreshOutline();
-    }
+    const fired = await withDebugPreview(
+      "/api/ai/summarize",
+      { slug, chapter: chapterNumber },
+      async (finalBody) => {
+        try {
+          const response = await fetch("/api/ai/summarize", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(finalBody),
+          });
+          const payload = (await response.json()) as {
+            outline?: Outline;
+            error?: { message?: string };
+          };
+          if (!response.ok || !payload.outline) {
+            setSummaryState("failed");
+            setSummaryError(payload.error?.message || "The chapter could not be summarized.");
+            await refreshOutline();
+            return;
+          }
+          setOutline(payload.outline);
+          setSummaryState("saved");
+          toast.success("Chapter summary and title saved.");
+        } catch {
+          setSummaryState("failed");
+          setSummaryError("Could not reach the app server while summarizing.");
+          await refreshOutline();
+        }
+      },
+    );
+    if (!fired) setSummaryState("idle");
   }, [chapterNumber, refreshOutline, slug]);
 
   const handleSummarize = useCallback(async () => {
@@ -1430,6 +1439,8 @@ function WorkspaceSession({
             </Link>
           </Button>
           <AddPageMenu slug={slug} />
+          <DebugModeToggle compact className="sm:hidden" />
+          <DebugModeToggle className="hidden sm:inline-flex" />
           <BookSettingsDialog
             slug={slug}
             onSaved={(next) => setModels(next.models)}

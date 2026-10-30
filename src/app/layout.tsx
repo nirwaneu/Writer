@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/components/providers";
+import { DebugPayloadDialog } from "@/components/debug/debug-payload-dialog";
 
 export const metadata: Metadata = {
   title: {
@@ -20,7 +21,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="h-full">
       <body className="min-h-full">
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <DebugPayloadDialog />
+        </Providers>
       </body>
     </html>
   );

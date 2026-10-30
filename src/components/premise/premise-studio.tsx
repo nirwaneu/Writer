@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusDot } from "@/components/status-dot";
+import { DebugModeToggle } from "@/components/debug/debug-mode-toggle";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -174,9 +175,13 @@ export function PremiseStudio({
             </h1>
           </div>
         </div>
-        <div className="hidden items-center gap-2 text-[11px] text-muted-foreground sm:flex">
-          <StatusDot tone="success" />
-          Saved to disk
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          <DebugModeToggle compact className="sm:hidden" />
+          <DebugModeToggle className="hidden sm:inline-flex" />
+          <span className="hidden items-center gap-2 sm:flex">
+            <StatusDot tone="success" />
+            Saved to disk
+          </span>
         </div>
       </header>
 

@@ -2,6 +2,7 @@
 
 import { abortStream, resetStream, useStreamStore } from "@/lib/streams/store";
 import { runExecutorStream } from "@/lib/streams/runners";
+import { withDebugPreview } from "@/lib/ai/debug-preview";
 
 export function useExecutorStream({
   slug,
@@ -21,7 +22,11 @@ export function useExecutorStream({
     reasoning: entry?.reasoning ?? "",
     error: entry?.error ?? null,
     chapter: entry?.chapter,
-    start: (body: Record<string, unknown>) => runExecutorStream({ key, body }),
+    start: (body: Record<string, unknown>) => {
+      void withDebugPreview("/api/ai/execute", body, (finalBody) => {
+        runExecutorStream({ key, body: finalBody });
+      });
+    },
     stop: () => abortStream(key),
     reset: () => resetStream(key),
   };
