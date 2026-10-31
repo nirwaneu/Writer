@@ -230,4 +230,57 @@ describe("splitForSummary", () => {
   });
 });
 
+describe("full context", () => {
+  const longDescription =
+    "Wajah ganteng, tapi masih polos dan canggung soal hubungan intim. ".repeat(40) +
+    "Baru per kenalan.";
+  const longPremise = "A long premise. ".repeat(2_000);
+  const longSummary = "A long chapter summary. ".repeat(1_000);
+  const longOutline: Outline = {
+    ...outline,
+    premise: longPremise,
+    characters: [{ name: "Mara", role: "protagonist", description: longDescription }],
+    chapters: [
+      { ...outline.chapters[0], summary: longSummary },
+      outline.chapters[1],
+    ],
+  };
+
+  it("keeps full character descriptions and premise in the Planner context", () => {
+    const messages = buildPlannerMessages(
+      longOutline,
+      2,
+      plan,
+      "What next?",
+      roles.planner.systemPrompt,
+    );
+    expect(messages[1].content).toContain(longDescription);
+    expect(messages[1].content).toContain(longPremise.trim());
+    expect(messages[1].content).not.toContain("[truncated]");
+  });
+
+  it("keeps full character descriptions and summaries in the Executor context", () => {
+    const messages = buildExecutorMessages(
+      longOutline,
+      2,
+      plan,
+      roles.executor.systemPrompt,
+    );
+    expect(messages[1].content).toContain(longDescription);
+    expect(messages[1].content).toContain(longSummary.trim());
+    expect(messages[1].content).not.toContain("[truncated]");
+  });
+
+  it("keeps full character descriptions in the Summarizer context", () => {
+    const messages = buildChapterSummaryMessages(
+      longOutline,
+      1,
+      "The gate knew her hand.",
+      roles.summarizer.systemPrompt,
+    );
+    expect(messages[1].content).toContain(longDescription);
+    expect(messages[1].content).not.toContain("[truncated]");
+  });
+});
+
 

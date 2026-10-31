@@ -2,23 +2,19 @@ import type { ChatMessage, Outline, RoleConfig } from "@/lib/schemas";
 import type { ChatInputMessage } from "@/lib/ai/client";
 import { chapterDisplayNumber, chapterDisplayTitle } from "@/lib/pages";
 
-const MAX_VAULT_CHARS = 30_000;
 const MAX_PLAN_CHARS = 18_000;
 const MAX_CHAT_CHARS = 26_000;
 
-function trim(text: string, limit: number): string {
-  const clean = text.trim();
-  if (clean.length <= limit) return clean;
-  return `${clean.slice(0, limit).trimEnd()}\n\n[truncated]`;
+function fullText(text: string): string {
+  return text.trim();
 }
 
 function characterBlock(outline: Outline): string {
   if (!outline.characters.length) return "No character sheet yet.";
   return outline.characters
-    .slice(0, 24)
     .map((character) => {
       const role = character.role ? ` (${character.role})` : "";
-      const description = character.description ? ` — ${trim(character.description, 320)}` : "";
+      const description = character.description ? ` — ${fullText(character.description)}` : "";
       return `- ${character.name}${role}${description}`;
     })
     .join("\n");
@@ -29,21 +25,11 @@ function chapterSummaries(outline: Outline, upToExclusive: number): string {
     .filter((chapter) => chapter.number < upToExclusive && chapter.summary.trim())
     .sort((a, b) => a.number - b.number);
 
-  const selected: typeof eligible = [];
-  let used = 0;
-  for (let index = eligible.length - 1; index >= 0; index -= 1) {
-    const chapter = eligible[index];
-    const cost = chapter.summary.length + 80;
-    if (used + cost > MAX_VAULT_CHARS && selected.length >= 4) break;
-    selected.unshift(chapter);
-    used += cost;
-  }
-
-  if (!selected.length) return "No previous chapters have been summarized yet.";
-  return selected
+  if (!eligible.length) return "No previous chapters have been summarized yet.";
+  return eligible
     .map(
       (chapter) =>
-        `Chapter ${chapterDisplayNumber(chapter)} — ${chapterDisplayTitle(chapter)}${chapter.summaryStale ? " (summary may be stale)" : ""}\n${trim(chapter.summary, 2_400)}`,
+        `Chapter ${chapterDisplayNumber(chapter)} — ${chapterDisplayTitle(chapter)}${chapter.summaryStale ? " (summary may be stale)" : ""}\n${fullText(chapter.summary)}`,
     )
     .join("\n\n");
 }
@@ -51,7 +37,7 @@ function chapterSummaries(outline: Outline, upToExclusive: number): string {
 export function vaultContext(outline: Outline, upToExclusive: number): string {
   return [
     `Title: ${outline.title}`,
-    `Premise:\n${trim(outline.premise || "No premise recorded.", 6_000)}`,
+    `Premise:\n${fullText(outline.premise) || "No premise recorded."}`,
     `Characters:\n${characterBlock(outline)}`,
     `Chapter summaries:\n${chapterSummaries(outline, upToExclusive)}`,
   ].join("\n\n");
@@ -156,7 +142,7 @@ export function buildPlannerMessages(
     `Chapter ${displayNumber}${chapterEntry ? ` — ${chapterDisplayTitle(chapterEntry)}` : ""}`,
     "This chapter has not been drafted yet." +
       (chapterEntry?.summary
-        ? `\nAn earlier summary exists and may be stale:\n${trim(chapterEntry.summary, 1_200)}`
+        ? `\nAn earlier summary exists and may be stale:\n${fullText(chapterEntry.summary)}`
         : ""),
     "",
     "Use this context to plan. Do not repeat it back. The author's conversation follows.",
@@ -246,7 +232,7 @@ export function buildTitleMessages(
       "Output only the title.",
       "",
       "[PREMISE]",
-      trim(premise, 4_000),
+      fullText(premise),
       "",
       "[NOTES]",
       chat,
@@ -270,10 +256,10 @@ export function buildCharacterExtractionMessages(
       "Use 3-8 characters only. role is a short label such as protagonist, antagonist, ally, or minor. description is one or two factual sentences about want, obstacle, secret, or relationship. Do not invent characters the premise does not support; if only the protagonist is clear, return that one.",
       "",
       "[TITLE]",
-      trim(outline.title, 500),
+      fullText(outline.title),
       "",
       "[PREMISE]",
-      trim(outline.premise || "No premise recorded.", 12_000),
+      fullText(outline.premise) || "No premise recorded.",
       "",
       "Return the JSON array now.",
     ].join("\n")),
@@ -293,10 +279,10 @@ export function buildImagePromptMessages(
           "Make it iconic and atmospheric, suitable for a literary novel cover. Leave breathing room for typography; do not put text in the image.",
           "",
           "[TITLE]",
-          trim(context.title, 500),
+          fullText(context.title),
           "",
           "[PREMISE]",
-          trim(context.premise || "No premise recorded.", 8_000),
+          fullText(context.premise) || "No premise recorded.",
         ]
       : [
           "[TASK]",
@@ -304,13 +290,13 @@ export function buildImagePromptMessages(
           "Capture a concrete visual moment, place, object, or character that belongs between these chapters. Do not illustrate abstract themes or add captions.",
           "",
           "[NOVEL]",
-          trim(context.title, 500),
+          fullText(context.title),
           "",
           "[PREVIOUS CHAPTER]",
-          trim(context.previousTitle || "Previous chapter", 500),
+          fullText(context.previousTitle || "Previous chapter"),
           "",
           "[PREVIOUS CHAPTER SUMMARY]",
-          trim(context.summary || "No previous chapter summary recorded.", 8_000),
+          fullText(context.summary || "No previous chapter summary recorded."),
         ];
 
   return applyInjections([systemOnly(rolePrompt), userMessage(subject.join("\n"))], injections);
@@ -325,7 +311,7 @@ export function buildTitleGenerationMessages(
     systemOnly(rolePrompt),
     userMessage([
       "[TEXT]",
-      trim(context, 30_000),
+      fullText(context),
       "",
       "Output only the title.",
     ].join("\n")),
@@ -350,7 +336,7 @@ export function buildChapterTitleMessages(
       "",
       `[NOVEL] ${outline.title}`,
       `[CHAPTER ${display}]`,
-      trim(chapterText, 24_000),
+      fullText(chapterText),
     ].join("\n")),
   ];
 }
@@ -369,7 +355,7 @@ export function buildChapterSummaryMessages(
       vaultContext(outline, chapter),
       "",
       "[CHAPTER TEXT]",
-      trim(chapterText, 60_000),
+      fullText(chapterText),
       "",
       "[TASK]",
       "Summarize the chapter for continuity, not marketing.",
@@ -399,7 +385,7 @@ export function buildChunkSummaryMessages(
       "Write 90–140 words in present tense. Record events, decisions, revelations, locations, and unresolved threads. Do not praise or analyze. Output only the summary.",
       "",
       `[CHAPTER ${display}, PART ${index} OF ${total}]`,
-      trim(chunk, 40_000),
+      fullText(chunk),
       "",
       `NOVEL: ${outline.title}`,
     ].join("\n")),
