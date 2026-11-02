@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -11,56 +12,118 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useDebugStore } from "@/lib/debug-store";
+import { Textarea } from "@/components/ui/textarea";
+import { useDebugStore, type DebugPayloadRequest } from "@/lib/debug-store";
 
 export function DebugPayloadDialog() {
   const request = useDebugStore((state) => state.request);
   const resolve = useDebugStore((state) => state.resolve);
 
-  async function copyPayload() {
-    if (!request) return;
+  return (
+    <Dialog
+      open={Boolean(request)}
+      onOpenChange={(open) => {
+        if (!open) resolve(null);
+      }}
+    >
+      <DialogContent className="max-w-3xl" showClose>
+        {request ? (
+          <DebugPayloadForm key={request.id} request={request} onResolve={resolve} />
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DebugPayloadForm({
+  request,
+  onResolve,
+}: {
+  request: DebugPayloadRequest;
+  onResolve: (payload: Record<string, unknown> | null) => void;
+}) {
+  const [draft, setDraft] = useState(() => JSON.stringify(request.payload, null, 2));
+  const [error, setError] = useState<string | null>(null);
+
+  function formatDraft() {
     try {
-      await navigator.clipboard.writeText(JSON.stringify(request.payload, null, 2));
+      const parsed: unknown = JSON.parse(draft);
+      setDraft(JSON.stringify(parsed, null, 2));
+      setError(null);
+    } catch (caught) {
+      setError(`Invalid JSON: ${(caught as Error).message}`);
+    }
+  }
+
+  async function copyDraft() {
+    try {
+      await navigator.clipboard.writeText(draft);
       toast.success("Payload copied.");
     } catch {
       toast.error("Could not copy the payload.");
     }
   }
 
+  function send() {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(draft);
+    } catch (caught) {
+      setError(`Invalid JSON: ${(caught as Error).message}`);
+      return;
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      setError("The payload must be a JSON object.");
+      return;
+    }
+    onResolve(parsed as Record<string, unknown>);
+  }
+
   return (
-    <Dialog
-      open={Boolean(request)}
-      onOpenChange={(open) => {
-        if (!open) resolve(false);
-      }}
-    >
-      <DialogContent className="max-w-3xl" showClose>
-        <DialogHeader>
-          <DialogTitle>Debug Mode · outgoing payload</DialogTitle>
-          <DialogDescription>
-            This is the exact JSON body that will be sent to the model provider. Review it, then
-            send or cancel. Request route:{" "}
-            <span className="font-mono text-foreground/80">{request?.endpoint ?? "unknown"}</span>
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <DialogHeader>
+        <DialogTitle>Debug Mode · outgoing payload</DialogTitle>
+        <DialogDescription>
+          This is the exact JSON body that will be sent to the model provider. Edit it if needed,
+          then send or cancel. Request route:{" "}
+          <span className="font-mono text-foreground/80">{request.endpoint}</span>
+        </DialogDescription>
+      </DialogHeader>
 
-        <div className="max-h-[55vh] overflow-auto rounded-md border border-border bg-[#070b10]">
-          <pre className="min-w-full p-4 font-mono text-[11.5px] leading-relaxed text-foreground/85">
-            <code>{request ? JSON.stringify(request.payload, null, 2) : ""}</code>
-          </pre>
-        </div>
+      <Textarea
+        value={draft}
+        onChange={(event) => {
+          setDraft(event.target.value);
+          if (error) setError(null);
+        }}
+        spellCheck={false}
+        aria-label="Outgoing API payload JSON"
+        className="min-h-[240px] max-h-[55vh] resize-y overflow-y-auto font-mono text-[11.5px] leading-relaxed"
+      />
 
-        <DialogFooter>
-          <Button variant="ghost" onClick={copyPayload} disabled={!request}>
-            <Copy />
-            Copy JSON
-          </Button>
-          <Button variant="secondary" onClick={() => resolve(false)}>
-            Cancel
-          </Button>
-          <Button onClick={() => resolve(true)}>Send Request</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <p
+        className={
+          error
+            ? "text-[11px] leading-relaxed text-[#f2937f]"
+            : "text-[10.5px] leading-relaxed text-muted-foreground"
+        }
+      >
+        {error || "Edits are sent as-is. Invalid JSON blocks the request."}
+      </p>
+
+      <DialogFooter>
+        <Button variant="ghost" onClick={() => void copyDraft()}>
+          <Copy />
+          Copy JSON
+        </Button>
+        <Button variant="ghost" onClick={formatDraft}>
+          Format
+        </Button>
+        <Button variant="secondary" onClick={() => onResolve(null)}>
+          Cancel
+        </Button>
+        <Button onClick={send}>Send Request</Button>
+      </DialogFooter>
+    </>
   );
 }

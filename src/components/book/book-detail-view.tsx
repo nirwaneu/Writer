@@ -34,6 +34,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ExpandableText } from "@/components/ui/expandable-text";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -382,9 +383,13 @@ export function BookDetailView({
             <h1 className="mt-3 font-serif text-[2.7rem] leading-[1.02] tracking-[-0.03em] md:text-[3.2rem]">
               {outline.title}
             </h1>
-            <p className="mt-3 max-w-2xl whitespace-pre-wrap text-[13.5px] leading-relaxed text-muted-foreground">
-              {outline.premise || "No premise recorded yet."}
-            </p>
+<ExpandableText
+              text={outline.premise}
+              empty="No premise recorded yet."
+              lines={4}
+              className="mt-3 max-w-2xl"
+              textClassName="text-[13.5px] leading-relaxed text-muted-foreground"
+            />
 
             <dl className="mt-6 grid max-w-xl grid-cols-2 gap-x-6 gap-y-3 border-t border-border pt-4 sm:grid-cols-4">
               <Stat label="Words" value={numberFormat.format(wordCount)} />
@@ -487,9 +492,13 @@ export function BookDetailView({
               <h2 className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#f2c477]">
                 Story Vault
               </h2>
-              <p className="mt-2 whitespace-pre-wrap text-[12.5px] leading-relaxed text-foreground/85">
-                {outline.premise || "No premise recorded yet."}
-              </p>
+<ExpandableText
+                text={outline.premise}
+                empty="No premise recorded yet."
+                lines={5}
+                className="mt-2"
+                textClassName="text-[12.5px] leading-relaxed text-foreground/85"
+              />
             </section>
 
             <section>

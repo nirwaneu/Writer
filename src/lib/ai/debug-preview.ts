@@ -39,9 +39,9 @@ export async function withDebugPreview(
     return false;
   }
 
-  const approved = await useDebugStore.getState().open(endpoint, preview.payload);
-  if (!approved) return false;
+  const edited = await useDebugStore.getState().open(endpoint, preview.payload);
+  if (!edited) return false;
 
-  await fire({ ...stripDebugFields(body), debug: false, debugPayload: preview.payload });
+  await fire({ ...stripDebugFields(body), debug: false, debugPayload: edited });
   return true;
 }
