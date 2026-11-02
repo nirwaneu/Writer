@@ -6,6 +6,7 @@ import { resolveModelRoute } from "@/lib/ai/routing";
 import { publishDraft } from "@/lib/storage/novels";
 import { requireConfig } from "@/lib/storage/config";
 import { getDraftBookConfig } from "@/lib/storage/book-config";
+import { getPromptMap, resolveRolePrompt } from "@/lib/storage/prompts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,6 +46,12 @@ async function generateTitle(draftId: string, premise: string): Promise<string> 
   const global = await requireConfig();
   const config = (await getDraftBookConfig(draftId)).config;
   const role = config.roles.titleGenerator;
+  const prompts = await getPromptMap();
+  const titleSystem = resolveRolePrompt(
+    prompts,
+    "title_generator_system",
+    role.systemPrompt,
+  );
   const route = resolveModelRoute(global, config.models.planner);
   try {
     const content = await generateTitleText({
@@ -52,9 +59,10 @@ async function generateTitle(draftId: string, premise: string): Promise<string> 
       apiKey: route.provider.apiKey,
       model: route.model,
       context: premise,
-      systemPrompt: role.systemPrompt,
+      systemPrompt: titleSystem,
       params: role.params,
       injections: roleInjections(role),
+      taskPrompt: prompts.title_generation_task,
     });
     return cleanTitle(content) || fallbackTitle(premise);
   } catch {

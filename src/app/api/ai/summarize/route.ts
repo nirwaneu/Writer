@@ -21,6 +21,7 @@ import {
 } from "@/lib/ai/prompts";
 import { generateTitleText } from "@/lib/ai/title";
 import { buildChatRequestPayload, chatCompletion } from "@/lib/ai/client";
+import { getPromptMap, resolveRolePrompt } from "@/lib/storage/prompts";
 import { acquire, release } from "@/lib/ai/active";
 import { resolveModelRoute } from "@/lib/ai/routing";
 
@@ -93,6 +94,12 @@ export async function POST(request: Request) {
 
     const bookConfig = (await getBookConfig(input.slug)).config;
     const summarizerRole = bookConfig.roles.summarizer;
+    const prompts = await getPromptMap();
+    const summarizerSystem = resolveRolePrompt(
+      prompts,
+      "summarizer_system",
+      summarizerRole.systemPrompt,
+    );
     const summarizerRoute = resolveModelRoute(global, bookConfig.models.summarizer);
     const model = summarizerRoute.model;
     const options = {
@@ -114,15 +121,17 @@ export async function POST(request: Request) {
           chunks[0] ?? text,
           1,
           chunks.length,
-          summarizerRole.systemPrompt,
+          summarizerSystem,
           roleInjections(summarizerRole),
+          prompts.chunk_summary_task,
         )
       : buildChapterSummaryMessages(
           outline,
           input.chapter,
           text,
-          summarizerRole.systemPrompt,
+          summarizerSystem,
           roleInjections(summarizerRole),
+          prompts.chapter_summary_task,
         );
 
     if (input.debug) {
@@ -152,8 +161,9 @@ export async function POST(request: Request) {
                     chunks[index] ?? "",
                     index + 1,
                     chunks.length,
-                    summarizerRole.systemPrompt,
+                    summarizerSystem,
                     roleInjections(summarizerRole),
+                    prompts.chunk_summary_task,
                   ),
             maxTokens: 1_200,
             ...(index === 0 && input.debugPayload
@@ -168,8 +178,9 @@ export async function POST(request: Request) {
             outline,
             input.chapter,
             partials,
-            summarizerRole.systemPrompt,
+            summarizerSystem,
             roleInjections(summarizerRole),
+            prompts.combine_summary_task,
           ),
         });
         summary = combined.content;
@@ -199,14 +210,20 @@ export async function POST(request: Request) {
     try {
       const titleRole = bookConfig.roles.titleGenerator;
       const plannerRoute = resolveModelRoute(global, bookConfig.models.planner);
+      const titleSystem = resolveRolePrompt(
+        prompts,
+        "title_generator_system",
+        titleRole.systemPrompt,
+      );
       const titleContent = await generateTitleText({
         baseUrl: plannerRoute.provider.baseUrl,
         apiKey: plannerRoute.provider.apiKey,
         model: plannerRoute.model,
         context: text,
-        systemPrompt: titleRole.systemPrompt,
+        systemPrompt: titleSystem,
         params: titleRole.params,
         injections: roleInjections(titleRole),
+        taskPrompt: prompts.title_generation_task,
       });
       chapterTitle = cleanChapterTitle(titleContent) || undefined;
     } catch {

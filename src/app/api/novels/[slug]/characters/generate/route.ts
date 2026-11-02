@@ -8,6 +8,7 @@ import { characterSchema } from "@/lib/schemas";
 import { requireConfig } from "@/lib/storage/config";
 import { getBookConfig } from "@/lib/storage/book-config";
 import { getNovel, saveCharacters } from "@/lib/storage/novels";
+import { getPromptMap } from "@/lib/storage/prompts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,6 +63,7 @@ export async function POST(request: Request, { params }: Params) {
     }
     const book = await getBookConfig(slug);
     const role = book.config.roles.planner;
+    const prompts = await getPromptMap();
     const route = resolveModelRoute(global, book.config.models.planner);
     const result = await chatCompletion({
       baseUrl: route.provider.baseUrl,
@@ -69,8 +71,9 @@ export async function POST(request: Request, { params }: Params) {
       model: route.model,
       messages: buildCharacterExtractionMessages(
         outline,
-        role.systemPrompt,
+        prompts.character_generator_system,
         roleInjections(role),
+        prompts.character_extraction_task,
       ),
       params: role.params,
       maxTokens: 1_600,

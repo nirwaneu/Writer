@@ -12,6 +12,7 @@ import {
 import { readNovelChat } from "@/lib/storage/chats";
 import { buildExecutorMessages, roleInjections } from "@/lib/ai/prompts";
 import { buildChatRequestPayload, openChatStream } from "@/lib/ai/client";
+import { getPromptMap, resolveRolePrompt } from "@/lib/storage/prompts";
 import { parseOpenAIStream, sseResponse } from "@/lib/ai/sse";
 import { acquire, release } from "@/lib/ai/active";
 import { resolveModelRoute } from "@/lib/ai/routing";
@@ -42,6 +43,8 @@ export async function POST(request: Request) {
 
     const bookConfig = (await getBookConfig(input.slug)).config;
     const executorRole = bookConfig.roles.executor;
+    const prompts = await getPromptMap();
+    const executorSystem = resolveRolePrompt(prompts, "executor_system", executorRole.systemPrompt);
 
     let messages;
     try {
@@ -49,8 +52,9 @@ export async function POST(request: Request) {
         outline,
         input.chapter,
         chat.messages,
-        executorRole.systemPrompt,
+        executorSystem,
         roleInjections(executorRole),
+        { taskPrompt: prompts.executor_task },
       );
     } catch {
       throw new AppError(

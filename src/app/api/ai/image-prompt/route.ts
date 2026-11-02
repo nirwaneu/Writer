@@ -7,6 +7,7 @@ import { AppError, NotFoundError } from "@/lib/errors";
 import { requireConfig } from "@/lib/storage/config";
 import { getBookConfig } from "@/lib/storage/book-config";
 import { getNovel } from "@/lib/storage/novels";
+import { getPromptMap, resolveRolePrompt } from "@/lib/storage/prompts";
 import { chapterDisplayTitle } from "@/lib/pages";
 
 export const runtime = "nodejs";
@@ -38,6 +39,12 @@ export async function POST(request: Request) {
     const outline = await getNovel(input.slug);
     const book = await getBookConfig(input.slug);
     const role = book.config.roles.imagePrompter;
+    const prompts = await getPromptMap();
+    const imageSystem = resolveRolePrompt(
+      prompts,
+      "image_prompter_system",
+      role.systemPrompt,
+    );
     const model = book.config.models.imagePrompter || global.models.imagePrompter;
     if (!model.trim()) {
       throw new AppError(
@@ -98,8 +105,12 @@ export async function POST(request: Request) {
       model: route.model,
       messages: buildImagePromptMessages(
         context,
-        role.systemPrompt,
+        imageSystem,
         roleInjections(role),
+        {
+          cover: prompts.image_cover_task,
+          chapter: prompts.image_chapter_task,
+        },
       ),
       params: role.params,
       maxTokens: 500,

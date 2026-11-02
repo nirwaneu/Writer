@@ -15,6 +15,7 @@ export async function generateTitleText({
   systemPrompt,
   params,
   injections,
+  taskPrompt,
   timeoutMs = 60_000,
   retries = 1,
 }: {
@@ -25,6 +26,7 @@ export async function generateTitleText({
   systemPrompt: string;
   params?: GenerationParams;
   injections?: PromptInjections;
+  taskPrompt?: string;
   timeoutMs?: number;
   retries?: number;
 }): Promise<string> {
@@ -32,7 +34,7 @@ export async function generateTitleText({
     baseUrl,
     apiKey,
     model,
-    messages: buildTitleGenerationMessages(context, systemPrompt, injections),
+    messages: buildTitleGenerationMessages(context, systemPrompt, injections, taskPrompt),
     params,
     maxTokens: TITLE_MAX_TOKENS,
     timeoutMs,

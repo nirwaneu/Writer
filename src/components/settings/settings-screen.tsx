@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Image as ImageIcon,
   Check,
+  FileText,
   Loader2,
   Pencil,
   Plus,
@@ -41,6 +42,7 @@ import { Label } from "@/components/ui/label";
 import { StatusDot } from "@/components/status-dot";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ModelCombobox } from "@/components/models/model-combobox";
+import { PromptTemplatesPanel } from "@/components/settings/prompt-templates-panel";
 import {
   AI_ROLES,
   CORE_ROLES,
@@ -85,7 +87,7 @@ export function SettingsScreen({
   const [models, setModels] = useState<ModelRoles>(
     initialConfig?.models ?? EMPTY_MODELS,
   );
-  const [activeTab, setActiveTab] = useState<"providers" | "models">(
+  const [activeTab, setActiveTab] = useState<"providers" | "models" | "prompts">(
     mode === "setup" && !initialConfig?.providers.length ? "providers" : "models",
   );
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -354,14 +356,16 @@ export function SettingsScreen({
           <p className="mt-2.5 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">
             {mode === "setup"
               ? "Add at least one OpenAI-compatible provider, then choose a model for each role. Models can come from different providers."
-              : "Provider connections and the default models for new books. Each book keeps its own copy once created."}
+              : "Provider connections, default models, and the global prompt templates. Each book keeps its own copy once created."}
           </p>
         </header>
 
         <div className="mt-6">
           <Tabs
             value={activeTab}
-            onValueChange={(value) => setActiveTab(value as "providers" | "models")}
+            onValueChange={(value) =>
+              setActiveTab(value as "providers" | "models" | "prompts")
+            }
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <TabsList>
@@ -375,6 +379,10 @@ export function SettingsScreen({
                 <TabsTrigger value="models">
                   <Zap />
                   Models
+                </TabsTrigger>
+                <TabsTrigger value="prompts">
+                  <FileText />
+                  Prompt Templates
                 </TabsTrigger>
               </TabsList>
               <div className="flex items-center gap-2">
@@ -619,6 +627,10 @@ export function SettingsScreen({
                   Add a provider connection before choosing models.
                 </p>
               ) : null}
+            </TabsContent>
+
+            <TabsContent value="prompts">
+              <PromptTemplatesPanel />
             </TabsContent>
           </Tabs>
         </div>

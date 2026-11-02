@@ -15,6 +15,7 @@ import {
 } from "@/lib/storage/chats";
 import { buildPlannerMessages, roleInjections } from "@/lib/ai/prompts";
 import { buildChatRequestPayload, openChatStream } from "@/lib/ai/client";
+import { getPromptMap, resolveRolePrompt } from "@/lib/storage/prompts";
 import { parseOpenAIStream, sseResponse } from "@/lib/ai/sse";
 import { acquire, release } from "@/lib/ai/active";
 import { addAssistantAlternative } from "@/lib/chat/messages";
@@ -194,13 +195,20 @@ export async function POST(request: Request) {
           ? (await getDraftBookConfig(target.id)).config
           : (await getBookConfig(target.slug)).config;
       const plannerRole = bookConfig.roles.planner;
+      const prompts = await getPromptMap();
+      const plannerSystem = resolveRolePrompt(prompts, "planner_system", plannerRole.systemPrompt);
       const messages = buildPlannerMessages(
         target.outline,
         target.chapter,
         contextHistory,
         messageText,
-        plannerRole.systemPrompt,
+        plannerSystem,
         roleInjections(plannerRole),
+        {
+          contextPrompt: prompts.planner_context,
+          ack: prompts.planner_ack,
+          taskPrompt: prompts.planner_task,
+        },
       );
       const plannerRoute = resolveModelRoute(global, bookConfig.models.planner);
       const model = plannerRoute.model;

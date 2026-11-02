@@ -105,6 +105,12 @@ CREATE TABLE IF NOT EXISTS presets (
   updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS prompt_templates (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS books (
   id TEXT PRIMARY KEY,
   slug TEXT UNIQUE,

@@ -11,6 +11,7 @@ import {
 } from "@/lib/ai/prompts";
 import { generateTitleText } from "@/lib/ai/title";
 import { chatCompletion } from "@/lib/ai/client";
+import { getPromptMap, resolveRolePrompt } from "@/lib/storage/prompts";
 import { acquire, release } from "@/lib/ai/active";
 import { resolveModelRoute } from "@/lib/ai/routing";
 
@@ -46,6 +47,12 @@ export async function POST(request: Request) {
       const chat = await readDraftChat(input.draftId, "premise");
       const draftConfig = (await getDraftBookConfig(input.draftId)).config;
       const summarizerRole = draftConfig.roles.summarizer;
+      const prompts = await getPromptMap();
+      const premiseSystem = resolveRolePrompt(
+        prompts,
+        "premise_system",
+        summarizerRole.systemPrompt,
+      );
       const summarizerRoute = resolveModelRoute(global, draftConfig.models.summarizer);
       const userMessages = chat.messages.filter(
         (message) => message.role === "user" && message.content.trim(),
@@ -67,8 +74,9 @@ export async function POST(request: Request) {
           model: summarizerRoute.model,
           messages: buildPremiseMessages(
             chat.messages,
-            summarizerRole.systemPrompt,
+            premiseSystem,
             roleInjections(summarizerRole),
+            prompts.premise_task,
           ),
           params: summarizerRole.params,
           maxTokens: 700,
@@ -105,14 +113,20 @@ export async function POST(request: Request) {
       try {
         const titleRole = draftConfig.roles.titleGenerator;
         const titleRoute = resolveModelRoute(global, draftConfig.models.planner);
+        const titleSystem = resolveRolePrompt(
+          prompts,
+          "title_generator_system",
+          titleRole.systemPrompt,
+        );
         const titleContent = await generateTitleText({
           baseUrl: titleRoute.provider.baseUrl,
           apiKey: titleRoute.provider.apiKey,
           model: titleRoute.model,
           context: premise,
-          systemPrompt: titleRole.systemPrompt,
+          systemPrompt: titleSystem,
           params: titleRole.params,
           injections: roleInjections(titleRole),
+          taskPrompt: prompts.title_generation_task,
         });
         const cleaned = cleanTitle(titleContent);
         if (cleaned) title = cleaned;

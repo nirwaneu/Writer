@@ -3,6 +3,7 @@ import {
   buildChapterSummaryMessages,
   buildExecutorMessages,
   buildPlannerMessages,
+  buildPremiseMessages,
   splitForSummary,
 } from "@/lib/ai/prompts";
 import type { ChatMessage, Outline } from "@/lib/schemas";
@@ -227,6 +228,34 @@ describe("splitForSummary", () => {
 
   it("keeps short text intact", () => {
     expect(splitForSummary("one paragraph", 700)).toEqual(["one paragraph"]);
+  });
+});
+
+describe("custom prompt templates", () => {
+  it("renders placeholders in a custom executor task", () => {
+    const messages = buildExecutorMessages(
+      outline,
+      2,
+      plan,
+      roles.executor.systemPrompt,
+      undefined,
+      { taskPrompt: "CUSTOM CHAPTER {{chapter}}\n\nPLAN:\n{{plan}}" },
+    );
+    expect(messages[1].content).toContain("CUSTOM CHAPTER 2");
+    expect(messages[1].content).toContain("Beat 1");
+    expect(messages[1].content).not.toContain("{{chapter}}");
+  });
+
+  it("renders the chat placeholder in a custom premise task", () => {
+    const messages = buildPremiseMessages(
+      plan,
+      roles.summarizer.systemPrompt,
+      undefined,
+      "BEGIN\n{{chat}}\nEND",
+    );
+    expect(messages[1].content).toBe(
+      "BEGIN\nAUTHOR: Open with her counting the bricks.\n\nPLANNER: Beat 1: arrival. Beat 2: the wall. Beat 3: the map.\nEND",
+    );
   });
 });
 

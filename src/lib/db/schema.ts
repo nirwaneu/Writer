@@ -54,6 +54,12 @@ export const presets = sqliteTable("presets", {
   updatedAt: text("updated_at").notNull(),
 });
 
+export const promptTemplates = sqliteTable("prompt_templates", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const books = sqliteTable(
   "books",
   {
@@ -156,6 +162,7 @@ export const meta = sqliteTable("meta", {
 export type DbProvider = typeof providers.$inferSelect;
 export type DbBook = typeof books.$inferSelect;
 export type DbPreset = typeof presets.$inferSelect;
+export type DbPromptTemplate = typeof promptTemplates.$inferSelect;
 export type DbChapter = typeof chapters.$inferSelect;
 export type DbCharacter = typeof characters.$inferSelect;
 export type DbChat = typeof chats.$inferSelect;

@@ -8,6 +8,7 @@ import { requireConfig } from "@/lib/storage/config";
 import { getBookConfig } from "@/lib/storage/book-config";
 import { readNovelChat } from "@/lib/storage/chats";
 import { getNovel } from "@/lib/storage/novels";
+import { getPromptMap, resolveRolePrompt } from "@/lib/storage/prompts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,6 +40,12 @@ export async function POST(request: Request) {
     const outline = await getNovel(input.slug);
     const book = await getBookConfig(input.slug);
     const role = book.config.roles.titleGenerator;
+    const prompts = await getPromptMap();
+    const titleSystem = resolveRolePrompt(
+      prompts,
+      "title_generator_system",
+      role.systemPrompt,
+    );
     const route = resolveModelRoute(
       global,
       book.config.models.planner || global.models.planner,
@@ -80,9 +87,10 @@ export async function POST(request: Request) {
       apiKey: route.provider.apiKey,
       model: route.model,
       context,
-      systemPrompt: role.systemPrompt,
+      systemPrompt: titleSystem,
       params: role.params,
       injections: roleInjections(role),
+      taskPrompt: prompts.title_generation_task,
     });
     const title = cleanTitle(content);
     if (!title) {
