@@ -3,7 +3,6 @@ import type { ChatInputMessage } from "@/lib/ai/client";
 import { PROMPT_DEFAULTS } from "@/lib/ai/prompt-definitions";
 import { chapterDisplayNumber, chapterDisplayTitle } from "@/lib/pages";
 
-const MAX_PLAN_CHARS = 18_000;
 const MAX_CHAT_CHARS = 26_000;
 
 function fullText(text: string): string {
@@ -62,6 +61,16 @@ function transcript(messages: ChatMessage[], maxChars: number): string {
   return kept
     .map((message) => `${message.role === "user" ? "AUTHOR" : "PLANNER"}: ${message.content.trim()}`)
     .join("\n\n");
+}
+
+function finalPlan(messages: ChatMessage[]): string {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message.role === "assistant" && !message.failed && message.content.trim()) {
+      return message.content.trim();
+    }
+  }
+  return "";
 }
 
 function recentHistory(messages: ChatMessage[], maxChars: number): ChatMessage[] {
@@ -184,7 +193,7 @@ export function buildExecutorMessages(
 ): ChatInputMessage[] {
   const chapterEntry = outline.chapters.find((item) => item.number === chapter);
   const displayNumber = chapterEntry ? chapterDisplayNumber(chapterEntry) : chapter;
-  const plan = transcript(history, MAX_PLAN_CHARS);
+  const plan = finalPlan(history);
   if (!plan.trim()) {
     throw new Error("NO_PLAN");
   }

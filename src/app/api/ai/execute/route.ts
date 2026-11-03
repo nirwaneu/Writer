@@ -26,6 +26,8 @@ const schema = z.object({
   slug: z.string().min(1),
   chapter: z.number().int().positive(),
   confirmOverwrite: z.boolean().optional(),
+  continue: z.boolean().optional(),
+  prefillText: z.string().max(1_000_000).optional(),
   debug: z.boolean().optional(),
   debugPayload: z.record(z.string(), z.unknown()).optional(),
 });
@@ -46,16 +48,29 @@ export async function POST(request: Request) {
     const prompts = await getPromptMap();
     const executorSystem = resolveRolePrompt(prompts, "executor_system", executorRole.systemPrompt);
 
-    let messages;
+    const continuationText = input.continue
+      ? (input.prefillText ?? existingContent)
+      : "";
+    if (input.continue && !continuationText.trim()) {
+      throw new AppError("BAD_REQUEST", "There is no text to continue from.", {
+        status: 400,
+      });
+    }
+
+    let messages: ReturnType<typeof buildExecutorMessages>;
     try {
+      const injections = roleInjections(executorRole);
       messages = buildExecutorMessages(
         outline,
         input.chapter,
         chat.messages,
         executorSystem,
-        roleInjections(executorRole),
+        input.continue ? { ...injections, assistantPrefill: undefined } : injections,
         { taskPrompt: prompts.executor_task },
       );
+      if (input.continue) {
+        messages.push({ role: "assistant", content: continuationText });
+      }
     } catch {
       throw new AppError(
         "BAD_REQUEST",
@@ -132,12 +147,13 @@ export async function POST(request: Request) {
         }
 
         try {
-          if (content.trim()) {
+          const fullText = input.continue ? `${continuationText}${content}` : content;
+          if (fullText.trim()) {
             try {
               savedChapter = await saveChapterContent(
                 input.slug,
                 input.chapter,
-                content,
+                fullText,
               );
             } catch (error) {
               saveError = error;

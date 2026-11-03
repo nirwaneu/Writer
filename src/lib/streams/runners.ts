@@ -174,10 +174,12 @@ export function runExecutorStream({
   if (streamControllers.has(key)) return;
   const controller = new AbortController();
   streamControllers.set(key, controller);
+  const continuationText =
+    body.continue === true && typeof body.prefillText === "string" ? body.prefillText : "";
 
   patchStream(key, "executor", {
     status: "streaming",
-    text: "",
+    text: continuationText,
     reasoning: "",
     error: null,
     startedAt: Date.now(),
@@ -186,7 +188,7 @@ export function runExecutorStream({
     lastBody: body,
   });
 
-  let text = "";
+  let text = continuationText;
   let reasoning = "";
 
   void (async () => {
@@ -196,8 +198,8 @@ export function runExecutorStream({
         body,
         {
           onDelta: (_chunk, full) => {
-            text = full;
-            patchStream(key, "executor", { text: full });
+            text = continuationText + full;
+            patchStream(key, "executor", { text });
           },
           onReasoning: (_chunk, full) => {
             reasoning = full;
@@ -231,7 +233,9 @@ export function runExecutorStream({
               },
             );
 
-      const partial = error.partial || text;
+      const partial = error.partial
+        ? continuationText + error.partial
+        : text;
       if (error.code === "ABORTED") {
         patchStream(key, "executor", {
           status: "done",

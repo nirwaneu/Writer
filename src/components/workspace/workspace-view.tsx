@@ -15,6 +15,7 @@ import {
   FileText,
   Loader2,
   PencilLine,
+  Play,
   RefreshCw,
   Save,
   SkipForward,
@@ -536,10 +537,33 @@ function WorkspaceSession({
     refreshChapter,
   ]);
 
-  const stopExecution = useCallback(() => {
+const stopExecution = useCallback(() => {
     executor.stop();
     toast.info("Stopping the Executor. The partial chapter is kept.");
   }, [executor]);
+
+  const continueExecution = useCallback(() => {
+    if (executing || !hasContent) return;
+    const prefix = contentRef.current;
+    if (!prefix.trim()) {
+      toast.error("There is no text to continue from.");
+      return;
+    }
+    setExecutionError(null);
+    setLastExecutionReasoning("");
+    setMobileView("write");
+    const scroller = scrollRef.current;
+    const atBottom = scroller ? isNearBottom(scroller) : true;
+    followStreamRef.current = atBottom;
+    setShowScrollButton(!atBottom);
+    executor.start({
+      slug,
+      chapter: chapterNumber,
+      confirmOverwrite: true,
+      continue: true,
+      prefillText: prefix,
+    });
+  }, [chapterNumber, executing, executor, hasContent, slug]);
 
   const requestExecute = useCallback(() => {
     if (!planReady || executing) return;
@@ -1139,6 +1163,29 @@ function WorkspaceSession({
                 />
               )}
             </div>
+
+            {!isIllustration && hasContent && !executing ? (
+              <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+                <span className="text-[10.5px] text-muted-foreground">
+                  Cut off mid-sentence?
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => void continueExecution()}
+                  disabled={!planReady}
+                  title={
+                    planReady
+                      ? "Continue from the exact end of the current text"
+                      : "Brainstorm the chapter with the Planner first."
+                  }
+                >
+                  <Play className="size-3.5" />
+                  Continue generation
+                </Button>
+              </div>
+            ) : null}
           </div>
 
           <div className="mt-3 flex items-center justify-between gap-3 px-1 text-[10px] text-muted-foreground/80">

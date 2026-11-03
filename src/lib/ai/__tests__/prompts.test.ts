@@ -166,6 +166,42 @@ describe("executor prompt", () => {
     );
   });
 
+  it("uses only the final Planner response, not the chat transcript", () => {
+    const history: ChatMessage[] = [
+      {
+        id: "u1",
+        role: "user",
+        content: "BRAINSTORM NOISE",
+        createdAt: "2026-01-02T00:00:00.000Z",
+      },
+      {
+        id: "a1",
+        role: "assistant",
+        content: "FIRST DRAFT PLAN",
+        createdAt: "2026-01-02T00:01:00.000Z",
+      },
+      {
+        id: "u2",
+        role: "user",
+        content: "MORE NOISE",
+        createdAt: "2026-01-02T00:02:00.000Z",
+      },
+      {
+        id: "a2",
+        role: "assistant",
+        content: "FINAL PLAN",
+        createdAt: "2026-01-02T00:03:00.000Z",
+      },
+    ];
+    const messages = buildExecutorMessages(outline, 2, history, roles.executor.systemPrompt);
+    const user = messages[1].content;
+    expect(user).toContain("FINAL PLAN");
+    expect(user).not.toContain("BRAINSTORM NOISE");
+    expect(user).not.toContain("FIRST DRAFT PLAN");
+    expect(user).not.toContain("MORE NOISE");
+    expect(user).not.toContain("AUTHOR:");
+  });
+
   it("uses the text-chapter number and ignores illustration pages", () => {
     const withIllustration: Outline = {
       ...outline,
