@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -12,8 +13,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { useDebugStore, type DebugPayloadRequest } from "@/lib/debug-store";
+
+const CodeEditor = dynamic(
+  () => import("@uiw/react-textarea-code-editor").then((mod) => mod.default),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="p-3 font-mono text-[11.5px] text-muted-foreground">Loading editor…</div>
+    ),
+  },
+);
 
 export function DebugPayloadDialog() {
   const request = useDebugStore((state) => state.request);
@@ -90,16 +100,28 @@ function DebugPayloadForm({
         </DialogDescription>
       </DialogHeader>
 
-      <Textarea
-        value={draft}
-        onChange={(event) => {
-          setDraft(event.target.value);
-          if (error) setError(null);
-        }}
-        spellCheck={false}
-        aria-label="Outgoing API payload JSON"
-        className="min-h-[240px] max-h-[55vh] resize-y overflow-y-auto font-mono text-[11.5px] leading-relaxed"
-      />
+      <div className="max-h-[55vh] overflow-y-auto rounded-md border border-input bg-[#070b10]">
+        <CodeEditor
+          value={draft}
+          language="json"
+          onChange={(event) => {
+            setDraft(event.target.value);
+            if (error) setError(null);
+          }}
+          padding={12}
+          minHeight={240}
+          id="debug-payload-json"
+          aria-label="Outgoing API payload JSON"
+          spellCheck={false}
+          data-color-mode="dark"
+          style={{
+            fontFamily:
+              'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+            fontSize: 11.5,
+            lineHeight: 1.6,
+          }}
+        />
+      </div>
 
       <p
         className={

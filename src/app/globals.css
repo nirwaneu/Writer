@@ -506,3 +506,18 @@ body {
 .chat-prose ol { list-style: decimal; }
 .chat-prose li::marker { color: #93a0ad; }
 
+
+/* Debug Mode JSON editor: wrap long prose values instead of horizontal scrolling. */
+.w-tc-editor,
+.w-tc-editor-text,
+.w-tc-editor-preview,
+.w-tc-editor-preview pre,
+.w-tc-editor-preview code {
+  white-space: pre-wrap !important;
+  word-break: break-all !important;
+  overflow-wrap: anywhere !important;
+}
+
+.w-tc-editor-text {
+  caret-color: #f2c477;
+}
