@@ -175,7 +175,9 @@ export function runExecutorStream({
   const controller = new AbortController();
   streamControllers.set(key, controller);
   const continuationText =
-    body.continue === true && typeof body.prefillText === "string" ? body.prefillText : "";
+    body.continue === true && typeof body.prefillText === "string"
+      ? body.prefillText.trimEnd()
+      : "";
 
   patchStream(key, "executor", {
     status: "streaming",
@@ -190,6 +192,7 @@ export function runExecutorStream({
 
   let text = continuationText;
   let reasoning = "";
+  let continuation = "";
 
   void (async () => {
     try {
@@ -197,8 +200,9 @@ export function runExecutorStream({
         "/api/ai/execute",
         body,
         {
-          onDelta: (_chunk, full) => {
-            text = continuationText + full;
+          onDelta: (chunk) => {
+            continuation += chunk;
+            text = continuationText + continuation;
             patchStream(key, "executor", { text });
           },
           onReasoning: (_chunk, full) => {
@@ -217,6 +221,7 @@ export function runExecutorStream({
         error: null,
       });
     } catch (caught) {
+      console.error("[executor-stream] Request failed:", caught);
       const error =
         caught instanceof StreamClientError
           ? caught

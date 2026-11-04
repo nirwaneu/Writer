@@ -523,7 +523,7 @@ function WorkspaceSession({
         setExecutionError(entry.error?.message || "The Executor stopped.");
         setShowScrollButton(false);
         executor.reset();
-        toast.error("The Executor stopped.");
+        toast.error(entry.error?.message || "The Executor stopped.");
         void refreshChapter();
       }
     });

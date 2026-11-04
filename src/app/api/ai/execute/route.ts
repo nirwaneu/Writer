@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     const executorSystem = resolveRolePrompt(prompts, "executor_system", executorRole.systemPrompt);
 
     const continuationText = input.continue
-      ? (input.prefillText ?? existingContent)
+      ? (input.prefillText ?? existingContent).trimEnd()
       : "";
     if (input.continue && !continuationText.trim()) {
       throw new AppError("BAD_REQUEST", "There is no text to continue from.", {
@@ -69,6 +69,15 @@ export async function POST(request: Request) {
         { taskPrompt: prompts.executor_task },
       );
       if (input.continue) {
+        while (messages.length && messages[messages.length - 1].role === "assistant") {
+          messages.pop();
+        }
+        if (messages[messages.length - 1]?.role !== "user") {
+          messages.push({
+            role: "user",
+            content: "Continue writing the chapter from the assistant text below.",
+          });
+        }
         messages.push({ role: "assistant", content: continuationText });
       }
     } catch {
@@ -143,6 +152,7 @@ export async function POST(request: Request) {
           }
           finished = true;
         } catch (error) {
+          console.error("[execute] Provider request failed:", error);
           failure = error;
         }
 
@@ -226,6 +236,7 @@ export async function POST(request: Request) {
       throw error;
     }
   } catch (error) {
+    console.error("[execute] Request failed:", error);
     return errorResponse(error);
   }
 }
