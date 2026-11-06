@@ -5,10 +5,10 @@ import { DebugPayloadDialog } from "@/components/debug/debug-payload-dialog";
 
 export const metadata: Metadata = {
   title: {
-    default: "VibeDraft",
-    template: "%s — VibeDraft",
+    default: "VibeNovel",
+    template: "%s — VibeNovel",
   },
-  description: "VibeDraft — a private desk for planning and drafting long-form fiction.",
+  description: "VibeNovel — a private desk for planning and drafting long-form fiction.",
   icons: {
     icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
     shortcut: ["/favicon.svg"],

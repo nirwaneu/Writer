@@ -16,7 +16,7 @@ Professional writers and authors whose income depends on long-form output. They 
 
 ## Product Purpose
 
-VibeDraft is an AI-assisted writing tool built around drafting sections from an outline. The writer owns the structure; the AI fills in section drafts from a brief; the writer edits down rather than up. Success means finished long-form drafts arrive faster while the writer still recognizes the work as theirs.
+VibeNovel is an AI-assisted writing tool built around drafting sections from an outline. The writer owns the structure; the AI fills in section drafts from a brief; the writer edits down rather than up. Success means finished long-form drafts arrive faster while the writer still recognizes the work as theirs.
 
 ## Positioning
 

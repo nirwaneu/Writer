@@ -142,6 +142,7 @@ export async function DELETE(request: Request, { params }: Params) {
       config.models.executor,
       config.models.summarizer,
       config.models.imagePrompter,
+      config.models.surgical,
     ].filter((value) => {
         const parsed = parseModelValue(value);
         return parsed.model && (parsed.providerId ? parsed.providerId === id : firstId === id);
@@ -164,6 +165,7 @@ export async function DELETE(request: Request, { params }: Params) {
         executorModel: books.executorModel,
         summarizerModel: books.summarizerModel,
         imagePrompterModel: books.imagePrompterModel,
+        surgicalModel: books.surgicalModel,
       })
       .from(books)
       .all();
@@ -173,6 +175,7 @@ export async function DELETE(request: Request, { params }: Params) {
         book.executorModel,
         book.summarizerModel,
         book.imagePrompterModel,
+        book.surgicalModel,
       ].some((value) => {
         if (!value) return false;
         const parsed = parseModelValue(value);

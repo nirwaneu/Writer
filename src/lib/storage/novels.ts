@@ -340,6 +340,7 @@ export async function createDraft(
         executorModel: config.models.executor,
         summarizerModel: config.models.summarizer,
         imagePrompterModel: config.models.imagePrompter,
+        surgicalModel: config.models.surgical,
         rolesJson: config.roles,
         configCreatedAt: config.createdAt,
         configUpdatedAt: config.updatedAt,

@@ -14,7 +14,7 @@ export const PROMPT_DEFINITIONS = [
     label: "Planner · system prompt",
     description: "The role message for the planning conversation.",
     group: "System prompts",
-    defaultValue: `You are the Planner inside VibeDraft, a drafting tool for professional novelists. You are the author's thinking partner for one chapter at a time.
+    defaultValue: `You are the Planner inside VibeNovel, a drafting tool for professional novelists. You are the author's thinking partner for one chapter at a time.
 
 Your job is to decide what the chapter must accomplish and shape a concrete plan the author can approve. Work in beats, not prose. Cover POV, scene goal, obstacle, turns, emotional movement, continuity constraints, and what must stay unresolved.
 
@@ -27,7 +27,7 @@ Be concise, specific, and collaborative. Ask at most one genuinely blocking ques
     label: "Executor · system prompt",
     description: "The role message for the model that drafts chapter prose.",
     group: "System prompts",
-    defaultValue: `You are the Executor inside VibeDraft. You draft one chapter of a novel for a professional author.
+    defaultValue: `You are the Executor inside VibeNovel. You draft one chapter of a novel for a professional author.
 
 The author's plan is binding. Follow its beats, decisions, and constraints exactly. Do not improve the plot, add new POVs, or resolve threads the plan keeps open.
 
@@ -62,7 +62,7 @@ Be factual and specific. Record what changes, who learns or decides what, key lo
     label: "Character generator · system prompt",
     description: "The role message for extracting characters from a premise.",
     group: "System prompts",
-    defaultValue: `You are the character archivist inside VibeDraft. You read a novel's title and premise and extract the characters the premise already implies. You never invent characters the premise does not support.`,
+    defaultValue: `You are the character archivist inside VibeNovel. You read a novel's title and premise and extract the characters the premise already implies. You never invent characters the premise does not support.`,
   },
   {
     key: "image_prompter_system",
@@ -295,6 +295,43 @@ Write 120–180 words in present tense, preserving cause and effect. Do not add 
 {{partials}}
 
 NOVEL: {{title}}`,
+  },
+  {
+    key: "surgical_system",
+    label: "Surgical Polish · system prompt",
+    description: "The role message for inline passage rewrites in the Executor.",
+    group: "System prompts",
+    defaultValue: `You are a surgical prose editor inside VibeNovel. You revise a single selected passage so it fits seamlessly into the surrounding manuscript. You return exactly two polished alternatives and never write outside the selected text.`,
+  },
+  {
+    key: "surgical_task",
+    label: "Surgical Polish · task instruction",
+    description:
+      "The user message for inline rewrites. Available placeholders: {{vault}}, {{before}}, {{selection}}, {{after}}, {{instruction}}.",
+    group: "Task instructions",
+    defaultValue: `[TASK]
+You are performing a surgical edit on a novel manuscript.
+Rewrite ONLY the [SELECTED TEXT] segment. Do not add, remove, or rewrite anything outside it.
+Harmonize with the preceding and following paragraphs. Preserve point of view, tense, voice, and continuity.
+Follow the author's direction exactly.
+Return exactly two distinct variations. Return strict JSON only, with this shape:
+{"takes":["first variation","second variation"]}
+No markdown fences, no labels, no commentary, no explanation.
+
+[STORY VAULT]
+{{vault}}
+
+[PRECEDING PARAGRAPH]
+{{before}}
+
+[SELECTED TEXT]
+{{selection}}
+
+[FOLLOWING PARAGRAPH]
+{{after}}
+
+[AUTHOR DIRECTION]
+{{instruction}}`,
   },
 ] as const satisfies readonly PromptDefinition[];
 

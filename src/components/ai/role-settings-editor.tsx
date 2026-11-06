@@ -85,7 +85,7 @@ export function RoleSettingsEditor({
               </button>
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-80 text-[11.5px] leading-relaxed">
-              This is the system message for the role. VibeDraft appends the Story Vault, the current
+              This is the system message for the role. VibeNovel appends the Story Vault, the current
               chapter, and the task instructions after it, so the model always gets the book
               context even if you rewrite this prompt.
             </TooltipContent>

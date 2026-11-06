@@ -411,6 +411,14 @@ function WorkspaceSession({
     setSaveState((current) => (current === "conflict" ? "conflict" : "dirty"));
   }, []);
 
+  const handleSurgicalCommit = useCallback(
+    (next: string) => {
+      updateContent(next);
+      void saveNowRef.current();
+    },
+    [updateContent],
+  );
+
   const runSummary = useCallback(async () => {
     setSummaryState("running");
     setSummaryError(null);
@@ -1159,6 +1167,8 @@ const stopExecution = useCallback(() => {
                   streaming={executing}
                   streamingText={executionText}
                   onStreamApplied={handleStreamApplied}
+                  surgical={{ slug, chapter: chapterNumber }}
+                  onSurgicalCommit={handleSurgicalCommit}
                   placeholder="Start writing, or plan the chapter on the right and press Execute."
                 />
               )}

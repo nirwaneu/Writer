@@ -59,7 +59,7 @@ const backupChatSchema = z
 
 export const bookBackupSchema = z
   .object({
-    format: z.literal("vibedraft-book-backup"),
+    format: z.enum(["vibedraft-book-backup", "vibenovel-book-backup"]),
     version: z.literal(1),
     exportedAt: z.string().min(1),
     book: backupBookSchema,
@@ -132,7 +132,7 @@ export async function exportBookBackup(slug: string): Promise<BookBackup> {
   }
 
   return {
-    format: "vibedraft-book-backup",
+    format: "vibenovel-book-backup",
     version: 1,
     exportedAt: now(),
     book: {
@@ -224,10 +224,11 @@ export async function importBookBackup(input: BookBackup): Promise<{ slug: strin
           updatedAt: input.book.updatedAt,
           presetId: input.config.presetId,
           presetName: input.config.presetName,
-          plannerModel: input.config.models.planner,
+plannerModel: input.config.models.planner,
           executorModel: input.config.models.executor,
           summarizerModel: input.config.models.summarizer,
           imagePrompterModel: input.config.models.imagePrompter,
+          surgicalModel: input.config.models.surgical ?? "",
           rolesJson: input.config.roles,
           configCreatedAt: input.book.createdAt,
           configUpdatedAt: input.book.updatedAt,
@@ -271,3 +272,4 @@ export async function importBookBackup(input: BookBackup): Promise<{ slug: strin
     throw error;
   }
 }
+

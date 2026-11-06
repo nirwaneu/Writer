@@ -1,8 +1,8 @@
-# VibeDraft Documentation
+# VibeNovel Documentation
 
 This guide covers deployment, configuration, the AI writing workflow, advanced prompt injection, data management, and troubleshooting.
 
-VibeDraft is a self-hosted, single-user application. It is designed to run on a homelab server, a VPS, or a local machine behind Docker.
+VibeNovel is a self-hosted, single-user application. It is designed to run on a homelab server, a VPS, or a local machine behind Docker.
 
 ---
 
@@ -29,7 +29,7 @@ VibeDraft is a self-hosted, single-user application. It is designed to run on a 
 
 ## Architecture
 
-VibeDraft is one Next.js application. There is no separate production backend service.
+VibeNovel is one Next.js application. There is no separate production backend service.
 
 - The UI and API routes run in the same container.
 - Provider calls are made server-side, so API keys never reach the browser.
@@ -156,7 +156,7 @@ The volume stays intact. Do not delete `./data` during an update.
 
 ### Credentials Are Environment-Only
 
-VibeDraft does not create a users table and does not store account passwords in SQLite. Login uses `APP_USERNAME` and `APP_PASSWORD` directly from the server environment.
+VibeNovel does not create a users table and does not store account passwords in SQLite. Login uses `APP_USERNAME` and `APP_PASSWORD` directly from the server environment.
 
 Quote values that contain `#`, spaces, or symbols:
 
@@ -174,7 +174,7 @@ An unquoted `#` is treated as the start of a comment by the env parser.
 2. Add a provider connection in **Settings → Providers**.
    - NanoGPT example: `https://nano-gpt.com/api/v1`
    - OpenRouter example: `https://openrouter.ai/api/v1`
-3. Test the connection. VibeDraft verifies the endpoint before saving it.
+3. Test the connection. VibeNovel verifies the endpoint before saving it.
 4. Flag image-capable models in **Settings → Providers → Image models**.
 5. Choose default models for Planner, Executor, and Summarizer.
 6. Optionally choose an Image Prompter model. Title Generation uses the Planner model.
@@ -220,7 +220,7 @@ If exposing the app beyond your LAN, terminate HTTPS at a reverse proxy.
 
 ## Hermes Agent GitOps Updates
 
-Hermes Agent is not bundled with VibeDraft. It is the deployment agent in this homelab workflow. Keep the repository checkout and the data directory separate from the image.
+Hermes Agent is not bundled with VibeNovel. It is the deployment agent in this homelab workflow. Keep the repository checkout and the data directory separate from the image.
 
 Recommended update sequence for Hermes:
 
@@ -234,7 +234,7 @@ docker compose ps
 Optional health check:
 
 ```bash
-curl -fsS http://127.0.0.1:3008/login >/dev/null && echo "VibeDraft healthy"
+curl -fsS http://127.0.0.1:3008/login >/dev/null && echo "VibeNovel healthy"
 ```
 
 Hermes should:
@@ -271,7 +271,7 @@ Chapter titles generated from the Planner use the last Planner response in that 
 
 The Executor writes the chapter from the approved plan and Story Vault context. It receives the premise, character sheet, relevant prior summaries, and the current plan.
 
-VibeDraft does **not** auto-summarize after generation. Regenerate or edit the chapter until you are satisfied.
+VibeNovel does **not** auto-summarize after generation. Regenerate or edit the chapter until you are satisfied.
 
 ### Summarizer
 
@@ -377,7 +377,7 @@ Presets provide global defaults. **Book settings** can override prompts, injecti
 
 Open **Settings → Providers → Image models** and flag the image-capable models for each provider. Illustration and cover dropdowns show flagged models first.
 
-If no models are flagged for a provider, VibeDraft shows all listed models as a fallback.
+If no models are flagged for a provider, VibeNovel shows all listed models as a fallback.
 
 ### Chapter Illustrations
 
@@ -524,7 +524,7 @@ Malformed backups, unknown fields, duplicate chapter numbers, duplicate chat sco
 
 ## Security Notes
 
-- VibeDraft is single-user. Do not expose it to untrusted users.
+- VibeNovel is single-user. Do not expose it to untrusted users.
 - Use HTTPS when the app is reachable beyond your LAN.
 - `.env` contains credentials. Never commit it.
 - Provider API keys are stored in `vibedraft.db` in plaintext. Protect the data volume and backups.
@@ -565,7 +565,7 @@ Title generation and other short tasks use a larger completion budget and retry 
 
 ### Import Fails
 
-The backup failed validation. Use a backup exported by VibeDraft. Do not hand-edit unknown fields into the JSON.
+The backup failed validation. Use a backup exported by VibeNovel. Do not hand-edit unknown fields into the JSON.
 
 ### SQLite Is Locked
 

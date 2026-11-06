@@ -19,12 +19,13 @@ export async function getPromptMap(): Promise<PromptMap> {
 
   for (const definition of PROMPT_DEFINITIONS) {
     const row = byKey.get(definition.key);
-    const value = row?.value?.trim() ? row.value : definition.defaultValue;
+    const raw = row?.value?.trim() ? row.value : definition.defaultValue;
+    const value = raw.replace(/VibeDraft/g, "VibeNovel");
     map[definition.key] = value;
-    if (!row || !row.value?.trim()) {
+    if (!row || !row.value?.trim() || value !== row.value) {
       missing.push({
         key: definition.key,
-        value: definition.defaultValue,
+        value,
         updatedAt: timestamp,
       });
     }

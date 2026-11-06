@@ -37,8 +37,9 @@ const config: AppConfig = {
   models: {
     planner: "provider-a|gemma-4",
     executor: "provider-b|claude",
-    summarizer: "provider-a|gemma-4",
+summarizer: "provider-a|gemma-4",
     imagePrompter: "provider-a|prompt-model",
+    surgical: "provider-a|gemma-4",
   },
   providers,
   connection: { ok: true },

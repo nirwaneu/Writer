@@ -15,6 +15,7 @@ export const globalSettings = sqliteTable("global_settings", {
   executorModel: text("executor_model").notNull().default(""),
   summarizerModel: text("summarizer_model").notNull().default(""),
   imagePrompterModel: text("image_prompter_model").notNull().default(""),
+  surgicalModel: text("surgical_model").notNull().default(""),
   connectionOk: integer("connection_ok", { mode: "boolean" }).notNull().default(false),
   connectionCheckedAt: text("connection_checked_at"),
   connectionLatencyMs: integer("connection_latency_ms"),
@@ -60,6 +61,17 @@ export const promptTemplates = sqliteTable("prompt_templates", {
   updatedAt: text("updated_at").notNull(),
 });
 
+export const surgicalPresets = sqliteTable("surgical_presets", {
+  id: text("id").primaryKey(),
+  label: text("label").notNull(),
+  icon: text("icon").notNull().default(""),
+  instruction: text("instruction").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const books = sqliteTable(
   "books",
   {
@@ -79,6 +91,7 @@ export const books = sqliteTable(
     executorModel: text("executor_model"),
     summarizerModel: text("summarizer_model"),
     imagePrompterModel: text("image_prompter_model"),
+    surgicalModel: text("surgical_model"),
     rolesJson: text("roles_json", { mode: "json" }).$type<PresetRoles>(),
     configCreatedAt: text("config_created_at"),
     configUpdatedAt: text("config_updated_at"),
@@ -163,6 +176,7 @@ export type DbProvider = typeof providers.$inferSelect;
 export type DbBook = typeof books.$inferSelect;
 export type DbPreset = typeof presets.$inferSelect;
 export type DbPromptTemplate = typeof promptTemplates.$inferSelect;
+export type DbSurgicalPreset = typeof surgicalPresets.$inferSelect;
 export type DbChapter = typeof chapters.$inferSelect;
 export type DbCharacter = typeof characters.$inferSelect;
 export type DbChat = typeof chats.$inferSelect;

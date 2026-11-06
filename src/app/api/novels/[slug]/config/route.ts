@@ -44,6 +44,9 @@ export async function PUT(request: Request, { params }: Params) {
     if (input.models.imagePrompter.trim()) {
       resolveModelRoute(global, input.models.imagePrompter);
     }
+    if (input.models.surgical.trim()) {
+      resolveModelRoute(global, input.models.surgical);
+    }
     const config: BookConfig = await saveBookConfig(slug, input);
     return jsonOk({ config, source: "local" });
   } catch (error) {

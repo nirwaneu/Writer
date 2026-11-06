@@ -1,8 +1,8 @@
-# VibeDraft
+# VibeNovel
 
 **A private, self-hosted AI desk for writing long-form fiction.**
 
-VibeDraft is built for novelists who want the speed of modern AI without giving up control of their voice, their data, or their process. It pairs a focused writing workspace with a Planner, Executor, Summarizer, and Image Prompter that work from your Story Vault instead of dumping your entire manuscript into a prompt.
+VibeNovel is built for novelists who want the speed of modern AI without giving up control of their voice, their data, or their process. It pairs a focused writing workspace with a Planner, Executor, Summarizer, and Image Prompter that work from your Story Vault instead of dumping your entire manuscript into a prompt.
 
 Private by default. Provider-agnostic. Yours to host.
 
@@ -12,7 +12,7 @@ Private by default. Provider-agnostic. Yours to host.
 
 ### 1. Unrestricted AI Persona Control with Dual Assistant Injection
 
-VibeDraft gives you direct control over how the model behaves. Every role supports **unlimited system prompts** plus two optional assistant injections:
+VibeNovel gives you direct control over how the model behaves. Every role supports **unlimited system prompts** plus two optional assistant injections:
 
 - **Context Anchor** — insert context immediately before the new user message as either a `system` or `user` message.
 - **Assistant Prefill** — append an `assistant` message at the very bottom of the payload to steer the model's continuation.
@@ -41,7 +41,7 @@ Images are downloaded and stored locally on your data volume, so they survive re
 
 ### 4. 100% Local Privacy & Portability
 
-Your library lives in SQLite and Markdown inside your own Docker volume. There is no hosted VibeDraft account and no cloud library.
+Your library lives in SQLite and Markdown inside your own Docker volume. There is no hosted VibeNovel account and no cloud library.
 
 Each book can be exported as a validated JSON backup and restored on another machine. Imports create new IDs and remap relations safely, so restoring a backup never overwrites an existing book.
 
@@ -49,9 +49,9 @@ Each book can be exported as a validated JSON backup and restored on another mac
 
 ## Recommended Providers
 
-VibeDraft was meticulously built and tested against **NanoGPT** and **OpenRouter**, and supports any OpenAI-compatible endpoint.
+VibeNovel was meticulously built and tested against **NanoGPT** and **OpenRouter**, and supports any OpenAI-compatible endpoint.
 
-For the best token-efficient, uncensored, and highly reliable AI generation, **NanoGPT is highly recommended**. Support the development of VibeDraft by creating your NanoGPT account here:
+For the best token-efficient, uncensored, and highly reliable AI generation, **NanoGPT is highly recommended**. Support the development of VibeNovel by creating your NanoGPT account here:
 
 **[Create a NanoGPT account →](https://nano-gpt.com/subscription/weB4cFpW)**
 
@@ -89,7 +89,7 @@ For setup details, LAN access, Hermes Agent updates, backup/restore, and prompt 
 
 ---
 
-## What Makes VibeDraft Different?
+## What Makes VibeNovel Different?
 
 - **The Story Vault is the context layer.** The Executor receives the premise, character sheet, relevant chapter summaries, and the current plan — never the whole manuscript.
 - **Manual summary, not surprise automation.** Regenerate and edit freely. Summarize and title a chapter only when you are happy with it.
@@ -113,11 +113,11 @@ For setup details, LAN access, Hermes Agent updates, backup/restore, and prompt 
 
 ## Community & Contributions
 
-Bug reports, prompt recipes, provider notes, and focused pull requests are welcome. If you build something interesting with VibeDraft, share it.
+Bug reports, prompt recipes, provider notes, and focused pull requests are welcome. If you build something interesting with VibeNovel, share it.
 
 Before opening a large PR, please describe the problem and the intended behavior so the change can stay aligned with the project's architecture.
 
-VibeDraft is a single-user, self-hosted application. Do not expose it directly to untrusted users without HTTPS and appropriate network controls.
+VibeNovel is a single-user, self-hosted application. Do not expose it directly to untrusted users without HTTPS and appropriate network controls.
 
 ---
 

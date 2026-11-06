@@ -27,13 +27,15 @@ import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RoleSettingsEditor } from "@/components/ai/role-settings-editor";
+import { ModelCombobox } from "@/components/models/model-combobox";
 import { CoverPanel } from "@/components/illustration/cover-panel";
 import { clonePresetRoles } from "@/lib/presets/defaults";
 import {
   CORE_ROLES,
+  MODEL_ROLE_LABELS,
   PRESET_EDIT_ROLES,
   ROLE_LABELS,
-  type AIRole,
+  type ModelRole,
   type PresetRole,
 } from "@/lib/presets/constants";
 import type { BookConfig, Illustration, ModelRoles, Outline, Preset } from "@/lib/schemas";
@@ -166,7 +168,7 @@ export function BookSettingsDialog({
     );
   }
 
-  function updateModel(role: AIRole, model: string) {
+  function updateModel(role: ModelRole, model: string) {
     setConfig((current) =>
       current ? { ...current, models: { ...current.models, [role]: model } } : current,
     );
@@ -323,6 +325,30 @@ export function BookSettingsDialog({
                 Copies prompts and parameters into the form. Models stay as they are. Nothing is
                 saved until you press Save for this book.
               </p>
+            </div>
+
+            <div className="rounded-md border border-border bg-[#0c1218] p-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="book-surgical-model">
+                  {MODEL_ROLE_LABELS.surgical} model
+                </Label>
+                <ModelCombobox
+                  id="book-surgical-model"
+                  value={config.models.surgical}
+                  onChange={(model) => updateModel("surgical", model)}
+                  groups={modelGroups}
+                  options={modelOptions}
+                  loading={loadingModels}
+                  error={modelNote}
+                  allowEmpty
+                  emptyLabel="Use global default"
+                  placeholder="Use global default (optional)"
+                />
+                <p className="text-[10.5px] leading-relaxed text-muted-foreground">
+                  Optional. Falls back to the global Surgical Polish model, then to this book&apos;s
+                  Executor model.
+                </p>
+              </div>
             </div>
 
             <Tabs

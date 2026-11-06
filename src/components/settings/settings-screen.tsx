@@ -13,6 +13,7 @@ import {
   Save,
   Server,
   Trash2,
+  Wand2,
   Zap,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -43,11 +44,12 @@ import { StatusDot } from "@/components/status-dot";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ModelCombobox } from "@/components/models/model-combobox";
 import { PromptTemplatesPanel } from "@/components/settings/prompt-templates-panel";
+import { SurgicalPresetsPanel } from "@/components/settings/surgical-presets-panel";
 import {
-  AI_ROLES,
   CORE_ROLES,
-  ROLE_LABELS,
-  type AIRole,
+  MODEL_ROLES,
+  MODEL_ROLE_LABELS,
+  type ModelRole,
 } from "@/lib/presets/constants";
 import { useAvailableModels } from "@/lib/use-available-models";
 import type { ModelRoles, PublicAppConfig, PublicProvider } from "@/lib/schemas";
@@ -71,6 +73,7 @@ const EMPTY_MODELS: ModelRoles = {
   executor: "",
   summarizer: "",
   imagePrompter: "",
+  surgical: "",
 };
 
 export function SettingsScreen({
@@ -87,7 +90,7 @@ export function SettingsScreen({
   const [models, setModels] = useState<ModelRoles>(
     initialConfig?.models ?? EMPTY_MODELS,
   );
-  const [activeTab, setActiveTab] = useState<"providers" | "models" | "prompts">(
+  const [activeTab, setActiveTab] = useState<"providers" | "models" | "prompts" | "surgical">(
     mode === "setup" && !initialConfig?.providers.length ? "providers" : "models",
   );
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -129,7 +132,8 @@ export function SettingsScreen({
     models.planner !== savedModels.planner ||
     models.executor !== savedModels.executor ||
     models.summarizer !== savedModels.summarizer ||
-    models.imagePrompter !== savedModels.imagePrompter;
+    models.imagePrompter !== savedModels.imagePrompter ||
+    models.surgical !== savedModels.surgical;
   const modelsComplete = CORE_ROLES.every((role) => Boolean(models[role].trim()));
   const configured = providers.length > 0 && modelsComplete;
 
@@ -364,7 +368,7 @@ export function SettingsScreen({
           <Tabs
             value={activeTab}
             onValueChange={(value) =>
-              setActiveTab(value as "providers" | "models" | "prompts")
+              setActiveTab(value as "providers" | "models" | "prompts" | "surgical")
             }
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -383,6 +387,10 @@ export function SettingsScreen({
                 <TabsTrigger value="prompts">
                   <FileText />
                   Prompt Templates
+                </TabsTrigger>
+                <TabsTrigger value="surgical">
+                  <Wand2 />
+                  Surgical Polish
                 </TabsTrigger>
               </TabsList>
               <div className="flex items-center gap-2">
@@ -557,15 +565,15 @@ export function SettingsScreen({
                 </div>
 
                 <div className="divide-y divide-border">
-                  {AI_ROLES.map((role) => (
+                  {MODEL_ROLES.map((role) => (
                     <div
                       key={role}
                       className="grid gap-3 px-5 py-4 sm:grid-cols-[160px_minmax(0,1fr)] sm:items-center"
                     >
                       <div>
                         <Label htmlFor={`default-model-${role}`}>
-                          {ROLE_LABELS[role]}
-                          {role === "imagePrompter" ? " (optional)" : ""}
+                          {MODEL_ROLE_LABELS[role]}
+                          {role === "imagePrompter" || role === "surgical" ? " (optional)" : ""}
                         </Label>
                         <p className="mt-1 text-[10.5px] leading-relaxed text-muted-foreground">
                           {roleDescription(role)}
@@ -582,9 +590,13 @@ export function SettingsScreen({
                         loading={loading}
                         error={role === "planner" ? error : null}
                         disabled={!providers.length}
+                        allowEmpty={role === "surgical"}
+                        emptyLabel="Fall back to Executor"
                         placeholder={
                           providers.length
-                            ? "Choose a model?"
+                            ? role === "surgical"
+                              ? "Optional — fall back to Executor"
+                              : "Choose a model?"
                             : "Add a provider first"
                         }
                       />
@@ -631,6 +643,10 @@ export function SettingsScreen({
 
             <TabsContent value="prompts">
               <PromptTemplatesPanel />
+            </TabsContent>
+
+            <TabsContent value="surgical">
+              <SurgicalPresetsPanel />
             </TabsContent>
           </Tabs>
         </div>
@@ -812,9 +828,10 @@ export function SettingsScreen({
   );
 }
 
-function roleDescription(role: AIRole): string {
+function roleDescription(role: ModelRole): string {
   if (role === "planner") return "Plans chapters in the rail.";
   if (role === "executor") return "Drafts the chapter prose.";
   if (role === "imagePrompter") return "Writes image prompts for illustrations and covers.";
+  if (role === "surgical") return "Rewrites selected passages inline.";
   return "Maintains story continuity.";
 }

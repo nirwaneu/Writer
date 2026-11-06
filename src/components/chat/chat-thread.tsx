@@ -432,7 +432,7 @@ function MessageBlock({
         </>
       )}
 
-      <div className="mt-1 flex flex-wrap items-center gap-0.5 opacity-70 transition-opacity focus-within:opacity-100 group-hover:opacity-100 sm:opacity-0">
+      <div className="mt-1 flex flex-wrap items-center gap-0.5 opacity-100 transition-opacity focus-within:opacity-100 lg:opacity-0 lg:group-hover:opacity-100">
         {canSwitch ? (
           <div className="flex items-center rounded-[4px] border border-border bg-[#0c1218]">
             <button

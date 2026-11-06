@@ -9,7 +9,7 @@ function fullText(text: string): string {
   return text.trim();
 }
 
-function renderPrompt(template: string, values: Record<string, string>): string {
+export function renderPrompt(template: string, values: Record<string, string>): string {
   return template.replace(/\{\{([a-zA-Z0-9_]+)\}\}/g, (match, key: string) => values[key] ?? match);
 }
 

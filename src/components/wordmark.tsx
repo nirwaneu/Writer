@@ -32,7 +32,7 @@ export function Wordmark({
       </span>
       {showText ? (
         <span className="font-serif text-[18px] font-semibold tracking-[-0.02em] text-foreground sm:text-[19px]">
-          VibeDraft
+          VibeNovel
         </span>
       ) : null}
     </span>

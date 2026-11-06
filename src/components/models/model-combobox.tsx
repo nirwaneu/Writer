@@ -25,6 +25,8 @@ export function ModelCombobox({
   loading = false,
   error,
   disabled = false,
+  allowEmpty = false,
+  emptyLabel = "Use global default",
   placeholder = "Choose a model?",
   className,
 }: {
@@ -36,6 +38,8 @@ export function ModelCombobox({
   loading?: boolean;
   error?: string | null;
   disabled?: boolean;
+  allowEmpty?: boolean;
+  emptyLabel?: string;
   placeholder?: string;
   className?: string;
 }) {
@@ -98,6 +102,26 @@ export function ModelCombobox({
                 >
                   <Check className="text-primary" />
                   <span className="truncate">{currentLabel}</span>
+                </CommandItem>
+              </CommandGroup>
+            ) : null}
+
+            {allowEmpty ? (
+              <CommandGroup heading="Default">
+                <CommandItem
+                  value="__use_default__"
+                  onSelect={() => {
+                    onChange("");
+                    setOpen(false);
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "shrink-0",
+                      !value ? "opacity-100 text-primary" : "opacity-0",
+                    )}
+                  />
+                  <span>{emptyLabel}</span>
                 </CommandItem>
               </CommandGroup>
             ) : null}

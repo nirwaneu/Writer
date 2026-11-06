@@ -4,6 +4,7 @@ import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3"
 import * as schema from "@/lib/db/schema";
 import { DB_PATH, DATA_DIR } from "@/lib/storage/paths";
 import { migrateLegacyFiles, migrateLegacyProvider } from "@/lib/db/migrate";
+import { DEFAULT_SURGICAL_PRESETS } from "@/lib/surgical/defaults";
 
 export type AppDb = BetterSQLite3Database<typeof schema>;
 
@@ -21,6 +22,7 @@ const CHAPTER_COLUMNS: Array<[string, string]> = [
 
 const GLOBAL_COLUMNS: Array<[string, string]> = [
   ["image_prompter_model", "TEXT NOT NULL DEFAULT ''"],
+  ["surgical_model", "TEXT NOT NULL DEFAULT ''"],
 ];
 
 const PROVIDER_COLUMNS: Array<[string, string]> = [
@@ -30,6 +32,7 @@ const PROVIDER_COLUMNS: Array<[string, string]> = [
 const BOOK_COLUMNS: Array<[string, string]> = [
   ["is_archived", "INTEGER NOT NULL DEFAULT 0"],
   ["image_prompter_model", "TEXT"],
+  ["surgical_model", "TEXT"],
   ["cover_image_path", "TEXT"],
   ["cover_image_prompt", "TEXT"],
   ["cover_image_negative_prompt", "TEXT"],
@@ -72,6 +75,7 @@ CREATE TABLE IF NOT EXISTS global_settings (
   executor_model TEXT NOT NULL DEFAULT '',
   summarizer_model TEXT NOT NULL DEFAULT '',
   image_prompter_model TEXT NOT NULL DEFAULT '',
+  surgical_model TEXT NOT NULL DEFAULT '',
   connection_ok INTEGER NOT NULL DEFAULT 0,
   connection_checked_at TEXT,
   connection_latency_ms INTEGER,
@@ -111,6 +115,17 @@ CREATE TABLE IF NOT EXISTS prompt_templates (
   updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS surgical_presets (
+  id TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  icon TEXT NOT NULL DEFAULT '',
+  instruction TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS books (
   id TEXT PRIMARY KEY,
   slug TEXT UNIQUE,
@@ -128,6 +143,7 @@ CREATE TABLE IF NOT EXISTS books (
   executor_model TEXT,
   summarizer_model TEXT,
   image_prompter_model TEXT,
+  surgical_model TEXT,
   roles_json TEXT,
   config_created_at TEXT,
   config_updated_at TEXT,
@@ -190,6 +206,38 @@ CREATE TABLE IF NOT EXISTS meta (
 );
 `;
 
+function seedSurgicalPresets(database: Database.Database): void {
+  const seeded = database
+    .prepare("SELECT value FROM meta WHERE key = 'surgical_presets_seeded'")
+    .get() as { value: string } | undefined;
+  if (seeded) return;
+
+  const insert = database.prepare(
+    `INSERT OR IGNORE INTO surgical_presets
+      (id, label, icon, instruction, sort_order, active, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  const timestamp = new Date().toISOString();
+  const seed = database.transaction(() => {
+    for (const preset of DEFAULT_SURGICAL_PRESETS) {
+      insert.run(
+        preset.id,
+        preset.label,
+        preset.icon,
+        preset.instruction,
+        preset.sortOrder,
+        1,
+        timestamp,
+        timestamp,
+      );
+    }
+    database
+      .prepare("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)")
+      .run("surgical_presets_seeded", "1");
+  });
+  seed();
+}
+
 let dbPromise: Promise<AppDb> | null = null;
 let sqlite: Database.Database | null = null;
 
@@ -202,6 +250,7 @@ async function initialize(): Promise<AppDb> {
   database.pragma("busy_timeout = 5000");
   database.exec(DDL);
   migrateSchema(database);
+  seedSurgicalPresets(database);
 
   const db = drizzle(database, { schema });
   await migrateLegacyFiles(db);

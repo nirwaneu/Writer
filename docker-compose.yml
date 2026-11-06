@@ -1,17 +1,17 @@
-# VibeDraft is one Next.js service. It has no separate application backend:
+# VibeNovel is one Next.js service. It has no separate application backend:
 # AI provider calls are made server-side by the same container.
 # The optional mock AI server (`npm run mock-ai`, port 8787) is development-only
 # and is intentionally not part of this production stack.
 
-name: vibedraft
+name: vibenovel
 
 services:
-  vibedraft:
+  vibenovel:
     build:
       context: .
       dockerfile: Dockerfile
-    image: vibedraft:latest
-    container_name: vibedraft
+    image: vibenovel:latest
+    container_name: vibenovel
     restart: unless-stopped
     init: true
     ports:
@@ -41,3 +41,5 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+

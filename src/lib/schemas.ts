@@ -20,6 +20,26 @@ export const chapterStatusSchema = z.enum([
 export const pageKindSchema = z.enum(["chapter", "illustration"]);
 export const imageAspectRatioSchema = z.enum(["portrait", "square", "landscape"]);
 
+export const surgicalPresetSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().trim().min(1).max(20),
+  icon: z.string().max(20).default(""),
+  instruction: z.string().trim().min(1).max(4_000),
+  sortOrder: z.number().int().nonnegative(),
+  active: z.boolean(),
+  createdAt: z.string().min(1),
+  updatedAt: z.string().min(1),
+});
+
+export const surgicalPresetInputSchema = z.object({
+  label: z.string().trim().min(1).max(20),
+  icon: z.string().trim().max(20).default(""),
+  instruction: z.string().trim().min(1).max(4_000),
+  active: z.boolean().default(true),
+});
+
+export const surgicalPresetUpdateSchema = surgicalPresetInputSchema.partial();
+
 export const illustrationSchema = z.object({
   path: z.string().min(1).max(200),
   prompt: z.string().max(4_000).default(""),
@@ -146,6 +166,7 @@ export const modelRolesSchema = z.object({
   executor: z.string().trim().min(1).max(500),
   summarizer: z.string().trim().min(1).max(500),
   imagePrompter: z.string().trim().max(500).default(""),
+  surgical: z.string().trim().max(500).default(""),
 });
 
 export const providerConnectionSchema = z.object({
@@ -204,6 +225,7 @@ export const appConfigSchema = z.object({
     executor: z.string().max(500).default(""),
     summarizer: z.string().max(500).default(""),
     imagePrompter: z.string().max(500).default(""),
+    surgical: z.string().max(500).default(""),
   }),
   providers: z.array(providerSchema).max(20).default([]),
   connection: z.object({
@@ -221,6 +243,9 @@ export type Chapter = z.infer<typeof chapterSchema>;
 export type ChapterKind = z.infer<typeof pageKindSchema>;
 export type ImageAspectRatio = z.infer<typeof imageAspectRatioSchema>;
 export type Illustration = z.infer<typeof illustrationSchema>;
+export type SurgicalPreset = z.infer<typeof surgicalPresetSchema>;
+export type SurgicalPresetInput = z.infer<typeof surgicalPresetInputSchema>;
+export type SurgicalPresetUpdateInput = z.infer<typeof surgicalPresetUpdateSchema>;
 export type Character = z.infer<typeof characterSchema>;
 export type Outline = z.infer<typeof outlineSchema>;
 export type ChatMessage = z.infer<typeof chatMessageSchema>;

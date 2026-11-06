@@ -5,6 +5,9 @@ export const DEFAULT_PRESET_ID = "default-general-fiction";
 export const AI_ROLES = ["planner", "executor", "summarizer", "imagePrompter"] as const;
 export type AIRole = (typeof AI_ROLES)[number];
 
+export const MODEL_ROLES = [...AI_ROLES, "surgical"] as const;
+export type ModelRole = (typeof MODEL_ROLES)[number];
+
 export const PRESET_EDIT_ROLES = [...AI_ROLES, "titleGenerator"] as const;
 export type PresetRole = (typeof PRESET_EDIT_ROLES)[number];
 
@@ -17,6 +20,14 @@ export const ROLE_LABELS: Record<PresetRole, string> = {
   summarizer: "Summarizer",
   imagePrompter: "Image Prompter",
   titleGenerator: "Title Generation",
+};
+
+export const MODEL_ROLE_LABELS: Record<ModelRole, string> = {
+  planner: "Planner",
+  executor: "Executor",
+  summarizer: "Summarizer",
+  imagePrompter: "Image Prompter",
+  surgical: "Surgical Polish",
 };
 
 export const DEFAULT_TITLE_PROMPT = PROMPT_DEFAULTS.title_generator_system;

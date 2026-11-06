@@ -26,6 +26,9 @@ export async function PUT(request: Request) {
     if (input.models.imagePrompter.trim()) {
       resolveModelRoute(config, input.models.imagePrompter);
     }
+    if (input.models.surgical.trim()) {
+      resolveModelRoute(config, input.models.surgical);
+    }
 
     const timestamp = new Date().toISOString();
     const saved = await saveConfig({

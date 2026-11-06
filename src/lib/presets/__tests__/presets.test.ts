@@ -14,6 +14,7 @@ const models = {
   executor: "executor-model",
   summarizer: "summarizer-model",
   imagePrompter: "image-prompter-model",
+  surgical: "surgical-model",
 };
 
 const config: AppConfig = {

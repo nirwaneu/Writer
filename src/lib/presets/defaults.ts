@@ -163,11 +163,12 @@ export function createBookConfigSnapshot(
     version: 1,
     presetId: preset.id,
     presetName: preset.name,
-    models: {
+models: {
       planner: models.planner,
       executor: models.executor,
       summarizer: models.summarizer,
       imagePrompter: models.imagePrompter ?? "",
+      surgical: models.surgical ?? "",
     },
     roles: clonePresetRoles(preset.roles),
     createdAt: timestamp,
